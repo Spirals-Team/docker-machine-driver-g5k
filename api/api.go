@@ -16,7 +16,7 @@ const (
 type Api struct {
     client      http.Client
     Username    string
-    passwd      string
+    Passwd      string
     Site        string
 }
 
@@ -34,7 +34,7 @@ type Link struct {
 func NewApi(username, passwd, site string) *Api{
     return &Api{
         Username: username,
-        passwd:   passwd,
+        Passwd:   passwd,
         Site:     site,
     }
 }
@@ -92,7 +92,7 @@ func (a *Api) request(method, url, args string) ([]byte, error) {
     }
 
     // Authentification parameters
-    req.SetBasicAuth(a.Username, a.passwd)
+    req.SetBasicAuth(a.Username, a.Passwd)
     // Necessary
     req.Header.Add("Accept", "*/*")
     if method == "POST" {

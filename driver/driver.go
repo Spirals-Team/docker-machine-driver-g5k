@@ -17,7 +17,11 @@ import (
 type Driver struct {
     *drivers.BaseDriver
     *api.Api
-    *api.Job
+
+    JobId      int
+    g5kUser    string
+    g5kPasswd  string
+    g5kSite    string
 }
 
 func NewDriver() *Driver {
@@ -29,8 +33,18 @@ func NewDriver() *Driver {
 }
 
 // TODO To complete
-func (d *Driver) Create() error {
-    var err error
+func (d *Driver) Create() (err error) {
+    var job *api.Job
+
+    client := d.getApi()
+    if job, err = client.GetJob(d.JobId); err != nil {
+        return err
+    }
+
+    sshport, _ := d.GetSSHPort()
+    d.BaseDriver.IPAddress = job.Nodes[0]
+    d.BaseDriver.SSHArgs = []string{"-o", fmt.Sprintf("ProxyCommand ssh %s@access.grid5000.fr -W %s:%v", d.g5kUser, d.BaseDriver.IPAddress, sshport)}
+
     home := mcnutils.GetHomeDir()
     src, dst := filepath.Join(home, ".ssh/id_rsa"), d.GetSSHKeyPath()
 
@@ -41,22 +55,6 @@ func (d *Driver) Create() error {
         return err
     }
 
-    log.Info("Submitting job...")
-    d.Job, err = d.Api.SubmitJob()
-    if err != nil {
-        return err
-    }
-    log.Info("Nodes allocated and ready")
-
-    log.Info("Deploying environment")
-    if _, err = d.Api.DeployEnvironment(d.Job); err != nil {
-        return err
-    }
-    log.Info("Environment deployed")
-
-    sshport, _ := d.GetSSHPort()
-    d.BaseDriver.IPAddress = d.Job.Nodes[0]
-    d.BaseDriver.SSHArgs = []string{"-o", fmt.Sprintf("ProxyCommand ssh %s@access.grid5000.fr -W %s:%v", d.Api.Username, d.BaseDriver.IPAddress, sshport)}
     log.Debug(d.BaseDriver)
 
     return nil
@@ -64,6 +62,13 @@ func (d *Driver) Create() error {
 
 func (d *Driver) DriverName() string {
     return "g5k"
+}
+
+func (d *Driver) getApi() *api.Api {
+    if d.Api == nil {
+        d.Api = api.NewApi(d.g5kUser, d.g5kPasswd, d.g5kSite)
+    }
+    return d.Api
 }
 
 // TODO To complete
@@ -124,7 +129,9 @@ func (d *Driver) GetURL() (string, error) {
 }
 
 func (d *Driver) GetState() (state.State, error) {
-    status, err := d.Api.GetJobState(d.Job.Uid)
+    client := d.getApi()
+
+    status, err := client.GetJobState(d.JobId)
     if err != nil {
         return state.Error, err
     }
@@ -153,13 +160,38 @@ func (d *Driver) Kill() error {
 }
 
 // TODO To complete
-func (d *Driver) PreCreateCheck() error {
+func (d *Driver) PreCreateCheck() (err error) {
+    if d.g5kUser == "" {
+        return errors.New("You must give your g5k account")
+    }
+    if d.g5kPasswd == "" {
+        return errors.New("You must give your g5k password")
+    }
+    if d.g5kSite == "" {
+        return errors.New("You must give the site you want to log on")
+    }
+
+    client := d.getApi()
+
+    log.Info("Submitting job...")
+    if d.JobId, err = client.SubmitJob(); err != nil {
+        return err
+    }
+    log.Info("Nodes allocated and ready")
+
+    log.Info("Deploying environment")
+    if err = client.DeployEnvironment(d.JobId); err != nil {
+        return err
+    }
+    log.Info("Environment deployed")
+
     return nil
 }
 
 // TODO To implement
 func (d *Driver) Remove() error {
-    return nil
+    client := d.getApi()
+    return client.KillJob(d.JobId)
 }
 
 // TODO To implement
@@ -169,25 +201,12 @@ func (d *Driver) Restart() error {
 
 // TODO To complete
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
-    var username string = opts.String("g5k-username")
-    var passwd string = opts.String("g5k-passwd")
-    var site string = opts.String("g5k-site")
+    d.g5kUser = opts.String("g5k-username")
+    d.g5kPasswd = opts.String("g5k-passwd")
+    d.g5kSite = opts.String("g5k-site")
 
     // We log on the node as root
     d.BaseDriver.SSHUser = "root"
-
-    // G5K credentials
-    if username == "" {
-        return errors.New("You must give your g5k account")
-    }
-    if passwd == "" {
-        return errors.New("You must give your g5k password")
-    }
-    if site == "" {
-        return errors.New("You must give the site you want to log on")
-    }
-
-    d.Api = api.NewApi(username, passwd, site)
 
     // Docker Swarm
     d.BaseDriver.SetSwarmConfigFromFlags(opts)
