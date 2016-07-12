@@ -34,7 +34,6 @@ func (a *Api) DeployEnvironment(jobId int) error {
         nodesStrs = append(nodesStrs, `"` + nodes + `"`)
     }
     nodesJson := strings.Join(nodesStrs, ",")
-    fmt.Println(job)
 
     // Deploying
     deploymentArguments := fmt.Sprintf(`{"nodes": [%s], "environment": %q, "key": "http://public.%s.grid5000.fr/~%s/authorized_keys"}`, nodesJson, defaultImage, a.Site, a.Username)

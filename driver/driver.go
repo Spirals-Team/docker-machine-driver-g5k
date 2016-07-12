@@ -18,10 +18,11 @@ type Driver struct {
     *drivers.BaseDriver
     *api.Api
 
-    JobId      int
-    g5kUser    string
-    g5kPasswd  string
-    g5kSite    string
+    JobId       int
+    G5kUser     string
+    G5kPasswd   string
+    G5kSite     string
+    g5kWalltime string
 }
 
 func NewDriver() *Driver {
@@ -32,7 +33,7 @@ func NewDriver() *Driver {
     }
 }
 
-// TODO To complete
+// Achieve the last settings
 func (d *Driver) Create() (err error) {
     var job *api.Job
 
@@ -43,8 +44,9 @@ func (d *Driver) Create() (err error) {
 
     sshport, _ := d.GetSSHPort()
     d.BaseDriver.IPAddress = job.Nodes[0]
-    d.BaseDriver.SSHArgs = []string{"-o", fmt.Sprintf("ProxyCommand ssh %s@access.grid5000.fr -W %s:%v", d.g5kUser, d.BaseDriver.IPAddress, sshport)}
+    d.BaseDriver.SSHArgs = []string{"-o", fmt.Sprintf("ProxyCommand ssh %s@access.grid5000.fr -W %s:%v", d.G5kUser, d.BaseDriver.IPAddress, sshport)}
 
+    // Copy the user's SSH private key to the machine folder
     home := mcnutils.GetHomeDir()
     src, dst := filepath.Join(home, ".ssh/id_rsa"), d.GetSSHKeyPath()
 
@@ -55,8 +57,6 @@ func (d *Driver) Create() (err error) {
         return err
     }
 
-    log.Debug(d.BaseDriver)
-
     return nil
 }
 
@@ -66,7 +66,7 @@ func (d *Driver) DriverName() string {
 
 func (d *Driver) getApi() *api.Api {
     if d.Api == nil {
-        d.Api = api.NewApi(d.g5kUser, d.g5kPasswd, d.g5kSite)
+        d.Api = api.NewApi(d.G5kUser, d.G5kPasswd, d.G5kSite)
     }
     return d.Api
 }
@@ -88,6 +88,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
             Name:   "g5k-site",
             Usage:  "Name of the site to connect to",
             Value:  "",
+        },
+        mcnflag.StringFlag{
+            Name:   "g5k-walltime",
+            Usage:  "Machine's lifetime (HH:MM:SS)",
+            Value:  "1:00:00",
         },
     }
 }
@@ -156,25 +161,25 @@ func (d *Driver) GetState() (state.State, error) {
 
 // TODO To implement
 func (d *Driver) Kill() error {
-    return nil
+    return fmt.Errorf("Cannot kill a machine on G5K")
 }
 
-// TODO To complete
+// Submit a job and deploy an environment on G5K
 func (d *Driver) PreCreateCheck() (err error) {
-    if d.g5kUser == "" {
-        return errors.New("You must give your g5k account")
+    if d.G5kUser == "" {
+        return errors.New("You must give your G5K account")
     }
-    if d.g5kPasswd == "" {
-        return errors.New("You must give your g5k password")
+    if d.G5kPasswd == "" {
+        return errors.New("You must give your G5K password")
     }
-    if d.g5kSite == "" {
+    if d.G5kSite == "" {
         return errors.New("You must give the site you want to log on")
     }
 
     client := d.getApi()
 
     log.Info("Submitting job...")
-    if d.JobId, err = client.SubmitJob(); err != nil {
+    if d.JobId, err = client.SubmitJob(d.g5kWalltime); err != nil {
         return err
     }
     log.Info("Nodes allocated and ready")
@@ -188,22 +193,22 @@ func (d *Driver) PreCreateCheck() (err error) {
     return nil
 }
 
-// TODO To implement
 func (d *Driver) Remove() error {
     client := d.getApi()
+    log.Info("Killing job...")
     return client.KillJob(d.JobId)
 }
 
-// TODO To implement
 func (d *Driver) Restart() error {
-    return nil
+    return fmt.Errorf("Cannot restart a machine on G5K")
 }
 
 // TODO To complete
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
-    d.g5kUser = opts.String("g5k-username")
-    d.g5kPasswd = opts.String("g5k-passwd")
-    d.g5kSite = opts.String("g5k-site")
+    d.G5kUser = opts.String("g5k-username")
+    d.G5kPasswd = opts.String("g5k-passwd")
+    d.G5kSite = opts.String("g5k-site")
+    d.g5kWalltime = opts.String("g5k-walltime")
 
     // We log on the node as root
     d.BaseDriver.SSHUser = "root"
@@ -213,12 +218,10 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
     return nil
 }
 
-// TODO To implement
 func (d *Driver) Start() error {
-    return nil
+    return fmt.Errorf("Cannot start a machine on G5K")
 }
 
-// TODO To implement
 func (d *Driver) Stop() error {
-    return nil
+    return fmt.Errorf("Cannot stop a machine on G5K")
 }

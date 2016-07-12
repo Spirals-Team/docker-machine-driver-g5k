@@ -16,11 +16,28 @@ type Job struct {
     Nodes     []string  `json:"assigned_nodes"`
 }
 
-func (a *Api) SubmitJob() (int, error) {
-    var urlSubmit string = fmt.Sprintf("%s/sites/%s/jobs", G5kApiFrontend, a.Site)
-    var job Job
+func convertDuration(t string) (int, error) {
+    var h, m, s int
 
-    if resp, err := a.post(urlSubmit, `{"resources": "nodes=1,walltime=0:05:00", "command": "sleep 300", "types": ["deploy"]}`); err != nil {
+    if _, err := fmt.Sscanf(t, "%d:%d:%d", &h, &m, &s); err != nil {
+        return 0, err
+    }
+
+    return (h * 3600) + (m * 60) + s, nil
+}
+
+// Submit a job on G5K. Returns the job ID.
+func (a *Api) SubmitJob(walltime string) (int, error) {
+    urlSubmit := fmt.Sprintf("%s/sites/%s/jobs", G5kApiFrontend, a.Site)
+    seconds, err := convertDuration(walltime)
+    if err != nil {
+        return 0, err
+    }
+    params := fmt.Sprintf(`{"resources": "nodes=1,walltime=%s", "command": "sleep %v", "types": ["deploy"]}`, walltime, seconds)
+    var job Job
+    var resp []byte
+
+    if resp, err = a.post(urlSubmit, params); err != nil {
         return 0, err
     } else {
         err = json.Unmarshal(resp, &job)
@@ -85,7 +102,6 @@ func (a *Api) waitJobIsReady(job *Job) bool {
         *job = *tmp_job
         time.Sleep(3*time.Second)
     }
-    fmt.Println(job)
 
     // If the launching failed
     if job.State != "running" {
