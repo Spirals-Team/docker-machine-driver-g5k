@@ -184,7 +184,7 @@ func (d *Driver) PreCreateCheck() (err error) {
     }
     log.Info("Nodes allocated and ready")
 
-    log.Info("Deploying environment")
+    log.Info("Deploying environment. It will take a few minutes...")
     if err = client.DeployEnvironment(d.JobId); err != nil {
         return err
     }
