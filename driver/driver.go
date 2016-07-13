@@ -196,7 +196,10 @@ func (d *Driver) PreCreateCheck() (err error) {
 func (d *Driver) Remove() error {
     client := d.getApi()
     log.Info("Killing job...")
-    return client.KillJob(d.JobId)
+    client.KillJob(d.JobId)
+
+    // We get an error if the job was already dead, which is not really an error
+    return nil
 }
 
 func (d *Driver) Restart() error {

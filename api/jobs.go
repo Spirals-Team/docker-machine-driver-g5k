@@ -75,11 +75,7 @@ func (a *Api) jobIsOver(job *Job) bool {
     startTime := int64(job.StartTime)
     timelife := int64(job.Timelife)
 
-    if (currentTime - startTime) >= timelife {
-        return true
-    } else {
-        return false
-    }
+    return (currentTime - startTime) >= timelife
 }
 
 // Free the nodes allocated to the jobs
