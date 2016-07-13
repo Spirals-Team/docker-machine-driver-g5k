@@ -8,6 +8,12 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It will create 
 
 You will also need a Grid5000 account to use the driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
+The driver won't work with the current version of Docker Machine. To make it work, apply the provided patch :
+
+```bash
+git am --signoff < ssh_fix.patch
+```
+
 ## Installation
 *The procedure was only tested on Ubuntu 16.04.*
 
@@ -64,4 +70,10 @@ At the end, this error should happen:
 You can ignore it: the machine is ready and accessible.
 
 ### VPN
-To connect to your Docker machine, you will (probably) need to connect to the Grid5000 VPN. More details [here](https://www.grid5000.fr/mediawiki/index.php/VPN)
+To connect to your Docker machine, you will (probably) need to connect to the Grid5000 VPN. You can run:
+
+```bash
+sshuttle --dns -r access.grid5000.fr 0/0
+```
+
+More details [here](https://www.grid5000.fr/mediawiki/index.php/VPN)

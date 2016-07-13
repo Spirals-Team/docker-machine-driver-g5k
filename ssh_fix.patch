@@ -1,0 +1,185 @@
+From 81777e4e8f81f236e21557cd62b62685b1fae801 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Timoth=C3=A9e=20LEFEBVRE?= <timothee.lefebvre@inria.fr>
+Date: Wed, 13 Jul 2016 16:57:23 +0200
+Subject: [PATCH] Takes SSH options from drivers
+
+---
+ drivers/errdriver/error.go              |  4 ++++
+ libmachine/drivers/base.go              |  6 ++++++
+ libmachine/drivers/drivers.go           |  3 +++
+ libmachine/drivers/rpc/client_driver.go | 11 +++++++++++
+ libmachine/drivers/rpc/server_driver.go |  5 +++++
+ libmachine/drivers/utils.go             |  4 +++-
+ libmachine/host/host.go                 |  4 +++-
+ libmachine/ssh/client.go                |  9 +++++----
+ 8 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/errdriver/error.go b/drivers/errdriver/error.go
+index 5322037..9ae9599 100644
+--- a/drivers/errdriver/error.go
++++ b/drivers/errdriver/error.go
+@@ -71,6 +71,10 @@ func (d *Driver) GetSSHUsername() string {
+ 	return ""
+ }
+ 
++func (d* Driver) GetSSHArgs() []string {
++    return nil
++}
++
+ func (d *Driver) GetState() (state.State, error) {
+ 	return state.Error, NotLoadable{d.Name}
+ }
+diff --git a/libmachine/drivers/base.go b/libmachine/drivers/base.go
+index 040ea2a..7fe80bc 100644
+--- a/libmachine/drivers/base.go
++++ b/libmachine/drivers/base.go
+@@ -19,6 +19,7 @@ type BaseDriver struct {
+ 	SSHUser        string
+ 	SSHPort        int
+ 	SSHKeyPath     string
++    SSHArgs        []string
+ 	StorePath      string
+ 	SwarmMaster    bool
+ 	SwarmHost      string
+@@ -68,6 +69,11 @@ func (d *BaseDriver) GetSSHUsername() string {
+ 	return d.SSHUser
+ }
+ 
++// GetSSHArgs returns additionnal options for ssh clients
++func (d *BaseDriver) GetSSHArgs() []string {
++    return d.SSHArgs
++}
++
+ // PreCreateCheck is called to enforce pre-creation steps
+ func (d *BaseDriver) PreCreateCheck() error {
+ 	return nil
+diff --git a/libmachine/drivers/drivers.go b/libmachine/drivers/drivers.go
+index dbc37d0..30ba6da 100644
+--- a/libmachine/drivers/drivers.go
++++ b/libmachine/drivers/drivers.go
+@@ -41,6 +41,9 @@ type Driver interface {
+ 	// GetSSHUsername returns username for use with ssh
+ 	GetSSHUsername() string
+ 
++    // GetSSHArgs returns additionnal options for ssh clients
++    GetSSHArgs() []string
++
+ 	// GetURL returns a Docker compatible host URL for connecting to this host
+ 	// e.g. tcp://1.2.3.4:2376
+ 	GetURL() (string, error)
+diff --git a/libmachine/drivers/rpc/client_driver.go b/libmachine/drivers/rpc/client_driver.go
+index 17e4be0..59b96ac 100644
+--- a/libmachine/drivers/rpc/client_driver.go
++++ b/libmachine/drivers/rpc/client_driver.go
+@@ -74,6 +74,7 @@ const (
+ 	GetSSHKeyPathMethod      = `.GetSSHKeyPath`
+ 	GetSSHPortMethod         = `.GetSSHPort`
+ 	GetSSHUsernameMethod     = `.GetSSHUsername`
++	GetSSHArgsMethod         = `.GetSSHArgs`
+ 	GetStateMethod           = `.GetState`
+ 	PreCreateCheckMethod     = `.PreCreateCheck`
+ 	CreateMethod             = `.Create`
+@@ -323,6 +324,16 @@ func (c *RPCClientDriver) GetSSHUsername() string {
+ 	return username
+ }
+ 
++func (c *RPCClientDriver) GetSSHArgs() []string {
++	var sshargs []string
++
++	if err := c.Client.Call(GetSSHArgsMethod, struct{}{}, &sshargs); err != nil {
++		log.Warnf("Error attempting call to get ssh args: %s", err)
++	}
++
++	return sshargs
++}
++
+ func (c *RPCClientDriver) GetState() (state.State, error) {
+ 	var s state.State
+ 
+diff --git a/libmachine/drivers/rpc/server_driver.go b/libmachine/drivers/rpc/server_driver.go
+index 6fb3f3d..afb001f 100644
+--- a/libmachine/drivers/rpc/server_driver.go
++++ b/libmachine/drivers/rpc/server_driver.go
+@@ -181,6 +181,11 @@ func (r *RPCServerDriver) GetSSHUsername(_ *struct{}, reply *string) error {
+ 	return nil
+ }
+ 
++func (r *RPCServerDriver) GetSSHArgs(_ *struct{}, reply *[]string) error {
++    *reply = r.ActualDriver.GetSSHArgs()
++    return nil
++}
++
+ func (r *RPCServerDriver) GetURL(_ *struct{}, reply *string) error {
+ 	info, err := r.ActualDriver.GetURL()
+ 	*reply = info
+diff --git a/libmachine/drivers/utils.go b/libmachine/drivers/utils.go
+index f5f3824..a87183f 100644
+--- a/libmachine/drivers/utils.go
++++ b/libmachine/drivers/utils.go
+@@ -28,7 +28,9 @@ func GetSSHClientFromDriver(d Driver) (ssh.Client, error) {
+ 		}
+ 	}
+ 
+-	client, err := ssh.NewClient(d.GetSSHUsername(), address, port, auth)
++    sshargs := d.GetSSHArgs()
++
++	client, err := ssh.NewClient(d.GetSSHUsername(), address, port, auth, sshargs)
+ 	return client, err
+ 
+ }
+diff --git a/libmachine/host/host.go b/libmachine/host/host.go
+index c438005..1ffd350 100644
+--- a/libmachine/host/host.go
++++ b/libmachine/host/host.go
+@@ -88,7 +88,9 @@ func (creator *StandardSSHClientCreator) CreateSSHClient(d drivers.Driver) (ssh.
+ 		auth.Keys = []string{d.GetSSHKeyPath()}
+ 	}
+ 
+-	return ssh.NewClient(d.GetSSHUsername(), addr, port, auth)
++    sshargs := d.GetSSHArgs()
++
++	return ssh.NewClient(d.GetSSHUsername(), addr, port, auth, sshargs)
+ }
+ 
+ func (h *Host) runActionForState(action func() error, desiredState state.State) error {
+diff --git a/libmachine/ssh/client.go b/libmachine/ssh/client.go
+index 499df4a..641f2ef 100644
+--- a/libmachine/ssh/client.go
++++ b/libmachine/ssh/client.go
+@@ -89,7 +89,7 @@ func SetDefaultClient(clientType ClientType) {
+ 	}
+ }
+ 
+-func NewClient(user string, host string, port int, auth *Auth) (Client, error) {
++func NewClient(user string, host string, port int, auth *Auth, sshargs []string) (Client, error) {
+ 	sshBinaryPath, err := exec.LookPath("ssh")
+ 	if err != nil {
+ 		log.Debug("SSH binary not found, using native Go implementation")
+@@ -106,7 +106,7 @@ func NewClient(user string, host string, port int, auth *Auth) (Client, error) {
+ 	}
+ 
+ 	log.Debug("Using SSH client type: external")
+-	client, err := NewExternalClient(sshBinaryPath, user, host, port, auth)
++	client, err := NewExternalClient(sshBinaryPath, user, host, port, auth, sshargs)
+ 	log.Debug(client)
+ 	return client, err
+ }
+@@ -306,12 +306,13 @@ func (client *NativeClient) Shell(args ...string) error {
+ 	return nil
+ }
+ 
+-func NewExternalClient(sshBinaryPath, user, host string, port int, auth *Auth) (*ExternalClient, error) {
++func NewExternalClient(sshBinaryPath, user, host string, port int, auth *Auth, sshargs []string) (*ExternalClient, error) {
+ 	client := &ExternalClient{
+ 		BinaryPath: sshBinaryPath,
+ 	}
+ 
+-	args := append(baseSSHArgs, fmt.Sprintf("%s@%s", user, host))
++    args := append(baseSSHArgs, strings.Join(sshargs, " "))
++	args = append(args, fmt.Sprintf("%s@%s", user, host))
+ 
+ 	// If no identities are explicitly provided, also look at the identities
+ 	// offered by ssh-agent
+-- 
+2.7.4
+
