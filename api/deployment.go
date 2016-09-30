@@ -43,7 +43,7 @@ func (a *Api) DeployEnvironment(jobId int, SSHPublicKeyPath string) error {
 	nodesJson := strings.Join(nodesStrs, ",")
 
 	// Deploying
-	deploymentArguments := fmt.Sprintf(`{"nodes": [%s], "environment": %q, "key": %q}`, nodesJson, defaultImage, sshPublicKey)
+	deploymentArguments := fmt.Sprintf(`{"nodes": [%s], "environment": %q, "key": %q}`, nodesJson, a.Environment, sshPublicKey)
 	var resp []byte
 	var deployment Deployment
 

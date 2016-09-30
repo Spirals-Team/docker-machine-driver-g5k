@@ -25,6 +25,7 @@ type Driver struct {
 	g5kWalltime          string
 	g5kSSHPrivateKeyPath string
 	g5kSSHPublicKeyPath  string
+	g5kImage             string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -44,7 +45,7 @@ func (d *Driver) DriverName() string {
 
 func (d *Driver) getAPI() *api.Api {
 	if d.Api == nil {
-		d.Api = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite)
+		d.Api = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite, d.g5kImage)
 	}
 	return d.Api
 }
@@ -87,6 +88,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage: "Path of your ssh public key",
 			Value: "",
 		},
+
+		mcnflag.StringFlag{
+			Name:  "g5k-image",
+			Usage: "Name of the image to deploy",
+			Value: "jessie-x64-min",
+		},
 	}
 }
 
@@ -104,6 +111,8 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	} else {
 		d.g5kSSHPublicKeyPath = d.g5kSSHPrivateKeyPath + ".pub"
 	}
+
+	d.g5kImage = opts.String("g5k-image")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)

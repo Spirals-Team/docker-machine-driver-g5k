@@ -10,7 +10,6 @@ import (
 
 const (
 	G5kApiFrontend = "https://api.grid5000.fr/stable"
-	defaultImage   = "jessie-x64-min"
 )
 
 type Api struct {
@@ -32,11 +31,12 @@ type Link struct {
 	Type         string `json:"type"`
 }
 
-func NewApi(username, password, site string) *Api {
+func NewApi(username, password, site, image string) *Api {
 	return &Api{
-		Username: username,
-		Passwd:   password,
-		Site:     site,
+		Username:    username,
+		Passwd:      password,
+		Site:        site,
+		Environment: image,
 	}
 }
 

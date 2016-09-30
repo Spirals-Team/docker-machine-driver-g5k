@@ -43,6 +43,7 @@ The driver will need a few options to create a machine. Here is a list of option
 | `--g5k-walltime`         | Timelife of the machine               | "1:00:00"           | No         |
 | `--g5k-ssh-private-key`  | Path of your ssh private key          | "~/.ssh/id_rsa"     | No         |
 | `--g5k-ssh-public-key`   | Path of your ssh public key           | < private-key >.pub | No         |
+| `--g5k-image`            | Name of the image to deploy           | jessie-x64-min      | No         |
 
 ### Example
 An example :
