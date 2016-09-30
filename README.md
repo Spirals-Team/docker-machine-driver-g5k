@@ -26,11 +26,6 @@ Then, either put the driver in a directory filled in your PATH environment varia
 export PATH=$PATH:$GOPATH/bin
 ```
 
-Be sure that your SSH public keys file is `$HOME/.ssh/id_rsa.pub`
-
-### Grid5000
-You should have an `authorized_keys` file in your SSH directory. Put it on your public directory, on each site you wish to create a machine on.
-
 ## How to use
 
 ### VPN
@@ -40,12 +35,14 @@ Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/me
 ### Options
 The driver will need a few options to create a machine. Here is a list of options:
 
-|       Option      |  Description     |  Default value   | Required  |
-|-------------------|------------------|------------------|-----------|
-| `--g5k-username`  | User's account   |                  | Yes       |
-| `--g5k-passwd`    | User's passwd    |                  | Yes       |
-| `--g5k-site`      | Site's location of the machine |    | Yes       |
-| `--g5k-walltime`  | Timelife of the machine | "1:00:00" | No        |
+|          Option          |              Description              |    Default value    |  Required  |
+|--------------------------|---------------------------------------|---------------------|------------|
+| `--g5k-username`         | Your Grid5000 account username        |                     | Yes        |
+| `--g5k-password`         | Your Grid5000 account password        |                     | Yes        |
+| `--g5k-site`             | Site to reserve the resources on      |                     | Yes        |
+| `--g5k-walltime`         | Timelife of the machine               | "1:00:00"           | No         |
+| `--g5k-ssh-private-key`  | Path of your ssh private key          | "~/.ssh/id_rsa"     | No         |
+| `--g5k-ssh-public-key`   | Path of your ssh public key           | < private-key >.pub | No         |
 
 ### Example
 An example :
@@ -53,13 +50,7 @@ An example :
 ```bash
 docker-machine create -d g5k \
 --g5k-username user \
---g5k-passwd ******** \
+--g5k-password ******** \
 --g5k-site lille \
 --g5k-walltime 2:45:00
 ```
-
-At the end, this error should happen:
-
-`Error creating machine: Error checking the host: Error checking and/or regenerating the certs: There was an error validating certificates for host "node.site.grid5000.fr:2376": dial tcp: lookup node.site.grid5000.fr on 127.0.1.1:53: no such host`
-
-You can ignore it: the machine is ready and accessible.
