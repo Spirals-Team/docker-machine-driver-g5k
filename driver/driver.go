@@ -48,7 +48,6 @@ func (d *Driver) Create() (err error) {
 	// Copy the user's SSH private key to the machine folder
 	home := mcnutils.GetHomeDir()
 	src, dst := filepath.Join(home, ".ssh/id_rsa"), d.GetSSHKeyPath()
-	println(src + " - " + dst)
 
 	if err = mcnutils.CopyFile(src, dst); err != nil {
 		return err
