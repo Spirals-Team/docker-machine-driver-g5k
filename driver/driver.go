@@ -19,7 +19,7 @@ type Driver struct {
 	*drivers.BaseDriver
 	*api.Api
 
-	JobId       int
+	JobID       int
 	G5kUser     string
 	G5kPasswd   string
 	G5kSite     string
@@ -39,17 +39,16 @@ func (d *Driver) Create() (err error) {
 	var job *api.Job
 
 	client := d.getApi()
-	if job, err = client.GetJob(d.JobId); err != nil {
+	if job, err = client.GetJob(d.JobID); err != nil {
 		return err
 	}
 
-	sshport, _ := d.GetSSHPort()
 	d.BaseDriver.IPAddress = job.Nodes[0]
-	d.BaseDriver.SSHArgs = []string{"-o", fmt.Sprintf("ProxyCommand ssh %s@access.grid5000.fr -W %s:%v", d.G5kUser, d.BaseDriver.IPAddress, sshport)}
 
 	// Copy the user's SSH private key to the machine folder
 	home := mcnutils.GetHomeDir()
 	src, dst := filepath.Join(home, ".ssh/id_rsa"), d.GetSSHKeyPath()
+	println(src + " - " + dst)
 
 	if err = mcnutils.CopyFile(src, dst); err != nil {
 		return err
@@ -137,7 +136,7 @@ func (d *Driver) GetURL() (string, error) {
 func (d *Driver) GetState() (state.State, error) {
 	client := d.getApi()
 
-	status, err := client.GetJobState(d.JobId)
+	status, err := client.GetJobState(d.JobID)
 	if err != nil {
 		return state.Error, err
 	}
@@ -180,13 +179,13 @@ func (d *Driver) PreCreateCheck() (err error) {
 	client := d.getApi()
 
 	log.Info("Submitting job...")
-	if d.JobId, err = client.SubmitJob(d.g5kWalltime); err != nil {
+	if d.JobID, err = client.SubmitJob(d.g5kWalltime); err != nil {
 		return err
 	}
 	log.Info("Nodes allocated and ready")
 
 	log.Info("Deploying environment. It will take a few minutes...")
-	if err = client.DeployEnvironment(d.JobId); err != nil {
+	if err = client.DeployEnvironment(d.JobID); err != nil {
 		return err
 	}
 	log.Info("Environment deployed")
@@ -197,7 +196,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 func (d *Driver) Remove() error {
 	client := d.getApi()
 	log.Info("Killing job...")
-	client.KillJob(d.JobId)
+	client.KillJob(d.JobID)
 
 	// We get an error if the job was already dead, which is not really an error
 	return nil
