@@ -9,9 +9,8 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It will create 
 You need a Grid5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
 ## Installation
-*The procedure was only tested on Ubuntu 16.04.*
+*This procedure was only tested on Ubuntu 16.04.*
 
-### Local host
 To use the Go tools, you need to set your [GOPATH](https://golang.org/doc/code.html#GOPATH) variable environment.
 
 To get the code and compile the binary, run:
@@ -29,24 +28,25 @@ export PATH=$PATH:$GOPATH/bin
 ## How to use
 
 ### VPN
-You need to be connected to the Grid5000 VPN to create and access your Docker machine node.
-Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN)
+You need to be connected to the Grid5000 VPN to create and access your Docker node.
+Dont forget to configure your DNS or use OpenVPN DNS auto-configuration.
+Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).
 
 ### Options
-The driver will need a few options to create a machine. Here is a list of options:
+The driver need a few options to create a machine. Here is a list of options:
 
-|          Option          |              Description              |    Default value    |  Required  |
-|--------------------------|---------------------------------------|---------------------|------------|
-| `--g5k-username`         | Your Grid5000 account username        |                     | Yes        |
-| `--g5k-password`         | Your Grid5000 account password        |                     | Yes        |
-| `--g5k-site`             | Site to reserve the resources on      |                     | Yes        |
-| `--g5k-walltime`         | Timelife of the machine               | "1:00:00"           | No         |
-| `--g5k-ssh-private-key`  | Path of your ssh private key          | "~/.ssh/id_rsa"     | No         |
-| `--g5k-ssh-public-key`   | Path of your ssh public key           | < private-key >.pub | No         |
-| `--g5k-image`            | Name of the image to deploy           | jessie-x64-min      | No         |
+|          Option          |              Description              |     Default value     |  Required  |
+|--------------------------|---------------------------------------|-----------------------|------------|
+| `--g5k-username`         | Your Grid5000 account username        |                       | Yes        |
+| `--g5k-password`         | Your Grid5000 account password        |                       | Yes        |
+| `--g5k-site`             | Site to reserve the resources on      |                       | Yes        |
+| `--g5k-walltime`         | Timelife of the machine               | "1:00:00"             | No         |
+| `--g5k-ssh-private-key`  | Path of your ssh private key          | "~/.ssh/id_rsa"       | No         |
+| `--g5k-ssh-public-key`   | Path of your ssh public key           | "< private-key >.pub" | No         |
+| `--g5k-image`            | Name of the image to deploy           | "jessie-x64-min"      | No         |
 
 ### Example
-An example :
+An example of machine creation :
 
 ```bash
 docker-machine create -d g5k \
@@ -54,4 +54,5 @@ docker-machine create -d g5k \
 --g5k-password ******** \
 --g5k-site lille \
 --g5k-walltime 2:45:00
+--g5k-ssh-private-key ~/.ssh/g5k-key
 ```
