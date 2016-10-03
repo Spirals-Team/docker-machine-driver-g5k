@@ -80,7 +80,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:  "g5k-ssh-private-key",
 			Usage: "Path of your ssh private key",
-			Value: "~/.ssh/id_rsa",
+			Value: mcnutils.GetHomeDir() + "/.ssh/id_rsa",
 		},
 
 		mcnflag.StringFlag{
