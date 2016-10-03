@@ -9,7 +9,7 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It will create 
 You need a Grid5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
 ## Installation
-*This procedure was only tested on Ubuntu 16.04.*
+*This procedure was tested on Ubuntu 16.04 and MacOS.*
 
 To use the Go tools, you need to set your [GOPATH](https://golang.org/doc/code.html#GOPATH) variable environment.
 
@@ -53,6 +53,7 @@ docker-machine create -d g5k \
 --g5k-username user \
 --g5k-password ******** \
 --g5k-site lille \
---g5k-walltime 2:45:00
---g5k-ssh-private-key ~/.ssh/g5k-key
+--g5k-walltime 2:45:00 \
+--g5k-ssh-private-key ~/.ssh/g5k-key \
+test-node
 ```
