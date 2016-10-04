@@ -1,5 +1,5 @@
 # docker-machine-driver-g5k
-A Docker Machine driver for the Grid5000 testbed infrastructure. It will create a Docker machine on a node of the Grid5000.
+A Docker Machine driver for the Grid5000 testbed infrastructure. It will provision a Docker machine on a node of the Grid5000.
 
 ## Requirements
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
@@ -28,12 +28,12 @@ export PATH=$PATH:$GOPATH/bin
 ## How to use
 
 ### VPN
-You need to be connected to the Grid5000 VPN to create and access your Docker node.
-Dont forget to configure your DNS or use OpenVPN DNS auto-configuration.
+You need to be connected to the Grid5000 VPN to create and access your Docker node.  
+Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.  
 Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).
 
 ### Options
-The driver need a few options to create a machine. Here is a list of options:
+The driver needs a few options to create a machine. Here is a list of options:
 
 |          Option          |              Description              |     Default value     |  Required  |
 |--------------------------|---------------------------------------|-----------------------|------------|
@@ -46,7 +46,7 @@ The driver need a few options to create a machine. Here is a list of options:
 | `--g5k-image`            | Name of the image to deploy           | "jessie-x64-min"      | No         |
 
 ### Example
-An example of machine creation :
+An example of node provisioning :
 
 ```bash
 docker-machine create -d g5k \
