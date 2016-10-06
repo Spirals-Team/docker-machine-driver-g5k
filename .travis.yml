@@ -1,0 +1,27 @@
+language: go
+
+# Needed, or go imports will use code from 'Spirals-Team/docker-machine-driver-g5k' when building a fork
+go_import_path: github.com/Spirals-Team/docker-machine-driver-g5k
+
+env:
+    - GIMME_OS=linux GIMME_ARCH=amd64
+    - GIMME_OS=darwin GIMME_ARCH=amd64
+    - GIMME_OS=windows GIMME_ARCH=amd64
+
+install:
+    - go get -d -v ./...
+
+script:
+    - go test ./...
+    - go build -v -o docker-machine-driver-g5k-$GIMME_OS-$GIMME_ARCH
+
+deploy:
+    provider: releases
+    skip_cleanup: true
+    file: "docker-machine-driver-g5k-$GIMME_OS-$GIMME_ARCH"
+
+    on:
+        tags: true
+    
+    api_key:
+        secure: JQLCBMlB8dScSJJ6nvAMRjZg8ndHr3LYy4nKedQlO6PsbwvLCEW83Ty7akja7UO+byjcWqQr8CNhfdYLCw3k+sEz3n+t3iKvmadQ55ygLn6gTUoii39fpYn1ixZIyosZdGxkXLsMn6+YFtP7CByLAuBbtCD0scI6MvsekU23AonZKvoaZV9XUq4HwKafE+zo4sv7bksCNsoMav+8f7fOdLrs0PIKLqhhXRNMkFsxSsJFp2TVyX1sbN9eZOTmtT5B+5tT1QdoI3HFVLjIHNDBOCOFkiTL242sq3bOQo8TGkEwsBYdLgeLbg5m8ZobbBYEbLxE94STHZb26orjM3bgMuhg0LcnK6/JDNq3lRPRdrd9Utxv6srGgrLpElfJQQKoOgPraX5vCaQtFX4/vCdA8clNcPkNVgCZrbIV7wS3+CmAz6KwBe88rhwlOXPnXe6O+Q2ylWqZBLUQSZUZhqhI57rKgk/H6YcNPSXV/jsm13vixlnyxHu393kt2+MaGnC44HYc+/sqbgCPOFtxQ2EjlBxqDZHzJldyuKr4yeOphaoWuVCJOKZcTahtvClurB6OpNPI07Jxcl/RtP5J2iSEK2v8xSpmhm9IMOA/Nq2/gwYZ68zmnuscEP8opXut9qJ1OKUZc1XOt03IZC9TCze6oMjN7Xpe5zpgOGsCEY34Piw=
