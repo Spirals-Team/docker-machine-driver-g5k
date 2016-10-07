@@ -8,7 +8,19 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It will provisi
 
 You need a Grid5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
-## Installation
+## Installation from GitHub releases
+Binary releases are available for Linux, MacOS and Windows on the [releases page](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases).  
+You can use the usual commands to install or upgrade the driver :
+
+```bash
+# download the binary for your OS
+sudo curl -L -o /usr/local/bin/docker-machine-driver-g5k "<link to release>"
+
+# grant execution rigths to the driver for everyone :
+sudo chmod +x /usr/local/bin/docker-machine-driver-g5k
+```
+
+## Installation from sources
 *This procedure was tested on Ubuntu 16.04 and MacOS.*
 
 To use the Go tools, you need to set your [GOPATH](https://golang.org/doc/code.html#GOPATH) variable environment.
@@ -35,15 +47,26 @@ Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/me
 ### Options
 The driver needs a few options to create a machine. Here is a list of options:
 
-|          Option          |              Description              |     Default value     |  Required  |
-|--------------------------|---------------------------------------|-----------------------|------------|
-| `--g5k-username`         | Your Grid5000 account username        |                       | Yes        |
-| `--g5k-password`         | Your Grid5000 account password        |                       | Yes        |
-| `--g5k-site`             | Site to reserve the resources on      |                       | Yes        |
-| `--g5k-walltime`         | Timelife of the machine               | "1:00:00"             | No         |
-| `--g5k-ssh-private-key`  | Path of your ssh private key          | "~/.ssh/id_rsa"       | No         |
-| `--g5k-ssh-public-key`   | Path of your ssh public key           | "< private-key >.pub" | No         |
-| `--g5k-image`            | Name of the image to deploy           | "jessie-x64-min"      | No         |
+|            Option            |                       Description                       |     Default value     |  Required  |
+|------------------------------|---------------------------------------------------------|-----------------------|------------|
+| `--g5k-username`             | Your Grid5000 account username                          |                       | Yes        |
+| `--g5k-password`             | Your Grid5000 account password                          |                       | Yes        |
+| `--g5k-site`                 | Site to reserve the resources on                        |                       | Yes        |
+| `--g5k-walltime`             | Timelife of the machine                                 | "1:00:00"             | No         |
+| `--g5k-ssh-private-key`      | Path of your ssh private key                            | "~/.ssh/id_rsa"       | No         |
+| `--g5k-ssh-public-key`       | Path of your ssh public key                             | "< private-key >.pub" | No         |
+| `--g5k-image`                | Name of the image to deploy                             | "jessie-x64-min"      | No         |
+| `--g5k-resource-properties`  | Resource selection with OAR properties (SQL format)     |                       | No         |
+
+#### Resource properties
+You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
+If you give incorrect properties or no resource matches your request, you will get this error :
+
+```bash
+Error with pre-create check: "[G5K_api] request failed: 400 Bad Request."
+```
+
+More informations about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
 
 ### Example
 An example of node provisioning :
@@ -53,7 +76,18 @@ docker-machine create -d g5k \
 --g5k-username user \
 --g5k-password ******** \
 --g5k-site lille \
---g5k-walltime 2:45:00 \
 --g5k-ssh-private-key ~/.ssh/g5k-key \
+test-node
+```
+
+An example with resource properties (node in cluster 'chimint' with more thant 8Gb of ram and at least 4 CPU cores)
+
+```bash
+docker-machine create -d g5k \
+--g5k-username user \
+--g5k-password ******** \
+--g5k-site lille \
+--g5k-ssh-private-key ~/.ssh/g5k-key \
+--g5k-resource-properties "cluster = 'chimint' and memnode > 8192 and cpucore >= 4" \
 test-node
 ```
