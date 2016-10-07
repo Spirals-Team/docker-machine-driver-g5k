@@ -18,14 +18,15 @@ type Driver struct {
 	*drivers.BaseDriver
 	*api.Api
 
-	JobID                int
-	G5kUsername          string
-	G5kPassword          string
-	G5kSite              string
-	g5kWalltime          string
-	g5kSSHPrivateKeyPath string
-	g5kSSHPublicKeyPath  string
-	g5kImage             string
+	JobID                 int
+	G5kUsername           string
+	G5kPassword           string
+	G5kSite               string
+	g5kWalltime           string
+	g5kSSHPrivateKeyPath  string
+	g5kSSHPublicKeyPath   string
+	g5kImage              string
+	g5kResourceProperties string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -94,6 +95,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage: "Name of the image to deploy",
 			Value: "jessie-x64-min",
 		},
+
+		mcnflag.StringFlag{
+			Name:  "g5k-resource-properties",
+			Usage: "Resource selection with OAR properties (SQL format)",
+			Value: "",
+		},
 	}
 }
 
@@ -113,6 +120,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	}
 
 	d.g5kImage = opts.String("g5k-image")
+	d.g5kResourceProperties = opts.String("g5k-resource-properties")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -208,7 +216,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 	client := d.getAPI()
 
 	log.Info("Submitting job...")
-	if d.JobID, err = client.SubmitJob(d.g5kWalltime); err != nil {
+	if d.JobID, err = client.SubmitJob(d.g5kWalltime, d.g5kResourceProperties); err != nil {
 		return err
 	}
 	log.Info("Nodes allocated and ready")
