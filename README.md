@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Spirals-Team/docker-machine-driver-g5k.svg)](https://travis-ci.org/Spirals-Team/docker-machine-driver-g5k)
+
 # docker-machine-driver-g5k
 A Docker Machine driver for the Grid5000 testbed infrastructure. It will provision a Docker machine on a node of the Grid5000.
 
