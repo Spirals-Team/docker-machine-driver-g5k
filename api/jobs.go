@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/docker/machine/libmachine/log"
 )
 
+// JobRequest represents a new job submission
 type JobRequest struct {
 	Resources  string   `json:"resources"`
 	Command    string   `json:"command"`
@@ -13,8 +16,9 @@ type JobRequest struct {
 	Types      []string `json:"types"`
 }
 
+// Job represents an existing job
 type Job struct {
-	Uid       int      `json:"uid"`
+	UID       int      `json:"uid"`
 	State     string   `json:"state"`
 	Timelife  int      `json:"walltime"`
 	Types     []string `json:"types"`
@@ -23,47 +27,34 @@ type Job struct {
 	Nodes     []string `json:"assigned_nodes"`
 }
 
-// convertDuration take a string "hh:mm:ss" and convert it in seconds
-func convertDuration(t string) (int, error) {
-	var h, m, s int
+// SubmitJob submit a new job on g5k api and return the job id
+func (a *Api) SubmitJob(jobReq JobRequest) (int, error) {
+	// create url for API call
+	urlAPI := fmt.Sprintf("%s/sites/%s/jobs", G5kApiFrontend, a.Site)
 
-	if _, err := fmt.Sscanf(t, "%d:%d:%d", &h, &m, &s); err != nil {
-		return 0, err
-	}
-
-	return (h * 3600) + (m * 60) + s, nil
-}
-
-// Submit a job on G5K. Returns the job ID.
-func (a *Api) SubmitJob(walltime, resourceProperties string) (int, error) {
-	urlSubmit := fmt.Sprintf("%s/sites/%s/jobs", G5kApiFrontend, a.Site)
-
-	seconds, err := convertDuration(walltime)
+	// create job request json
+	params, err := json.Marshal(jobReq)
 	if err != nil {
 		return 0, err
 	}
 
-	// create a new Job request (1 node)
-	params, err := json.Marshal(JobRequest{
-		Resources:  fmt.Sprintf("nodes=1,walltime=%s", walltime),
-		Command:    fmt.Sprintf("sleep %v", seconds),
-		Properties: resourceProperties,
-		Types:      []string{"deploy"},
-	})
+	log.Info("Submitting a new job...")
 
+	// send job request
+	resp, err := a.post(urlAPI, string(params))
 	if err != nil {
 		return 0, err
 	}
 
+	// unmarshal json response
 	var job Job
-	var resp []byte
-
-	if resp, err = a.post(urlSubmit, string(params)); err != nil {
+	err = json.Unmarshal(resp, &job)
+	if err != nil {
 		return 0, err
-	} else {
-		err = json.Unmarshal(resp, &job)
-		return job.Uid, err
 	}
+
+	log.Info("Job submitted successfully (id: %s)", job.UID)
+	return job.UID, err
 }
 
 // Refresh job's state
@@ -113,7 +104,7 @@ func (a *Api) waitJobIsReady(job *Job) bool {
 	tmp_job := new(Job)
 
 	for job.State == "waiting" || job.State == "tolaunch" || job.State == "launching" {
-		if tmp_job, err = a.GetJob(job.Uid); err != nil {
+		if tmp_job, err = a.GetJob(job.UID); err != nil {
 			return false
 		}
 		*job = *tmp_job

@@ -222,17 +222,29 @@ func (d *Driver) GetState() (state.State, error) {
 func (d *Driver) PreCreateCheck() (err error) {
 	client := d.getAPI()
 
-	log.Info("Submitting job...")
-	if d.G5kJobID, err = client.SubmitJob(d.G5kWalltime, d.G5kResourceProperties); err != nil {
+	// convert walltime to seconds
+	seconds, err := api.ConvertDuration(d.G5kWalltime)
+	if err != nil {
 		return err
 	}
-	log.Info("Node allocated and ready")
 
-	log.Info("Deploying environment. It will take a few minutes...")
+	// creating a new job with 1 node
+	job := api.JobRequest{
+		Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
+		Command:    fmt.Sprintf("sleep %v", seconds),
+		Properties: d.G5kResourceProperties,
+		Types:      []string{"deploy"},
+	}
+
+	// submit job
+	if d.G5kJobID, err = client.SubmitJob(job); err != nil {
+		return err
+	}
+
+	// deploy environment
 	if err = client.DeployEnvironment(d.G5kJobID, d.G5kSSHPublicKeyPath); err != nil {
 		return err
 	}
-	log.Info("Environment deployed")
 
 	return nil
 }
