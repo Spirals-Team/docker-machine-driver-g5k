@@ -79,23 +79,14 @@ func (a *Api) GetJob(jobID int) (*Job, error) {
 }
 
 // GetJobState returns the current state of the job
-func (a *Api) GetJobState(jobId int) (string, error) {
-	if job, err := a.GetJob(jobId); err != nil {
+func (a *Api) GetJobState(jobID int) (string, error) {
+	// get job from api
+	job, err := a.GetJob(jobID)
+	if err != nil {
 		return "", err
-	} else if a.jobIsOver(job) {
-		return "terminated", nil
-	} else {
-		return job.State, nil
 	}
-}
 
-// Returns true if the job expired, false otherwise
-func (a *Api) jobIsOver(job *Job) bool {
-	currentTime := time.Now().Unix()
-	startTime := int64(job.StartTime)
-	timelife := int64(job.Timelife)
-
-	return (currentTime - startTime) >= timelife
+	return job.State, nil
 }
 
 // Free the nodes allocated to the jobs
