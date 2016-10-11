@@ -54,23 +54,31 @@ func (a *Api) SubmitJob(jobReq JobRequest) (int, error) {
 	}
 
 	log.Info("Job submitted successfully (id: %s)", job.UID)
-	return job.UID, err
+	return job.UID, nil
 }
 
-// Refresh job's state
-func (a *Api) GetJob(jobId int) (*Job, error) {
-	job := new(Job)
-	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobId)
+// GetJob get the job from its id
+func (a *Api) GetJob(jobID int) (*Job, error) {
+	// create url for API call
+	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobID)
 
-	if resp, err := a.get(url); err != nil {
-		return &Job{}, err
-	} else {
-		err = json.Unmarshal(resp, &job)
-		return job, err
+	// send request
+	resp, err := a.get(url)
+	if err != nil {
+		return nil, err
 	}
+
+	// unmarshal json response
+	var job Job
+	err = json.Unmarshal(resp, &job)
+	if err != nil {
+		return nil, err
+	}
+
+	return &job, nil
 }
 
-// Returns the job's current state
+// GetJobState returns the current state of the job
 func (a *Api) GetJobState(jobId int) (string, error) {
 	if job, err := a.GetJob(jobId); err != nil {
 		return "", err
