@@ -89,10 +89,12 @@ func (a *Api) GetJobState(jobID int) (string, error) {
 	return job.State, nil
 }
 
-// Free the nodes allocated to the jobs
-func (a *Api) KillJob(jobId int) error {
-	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobId)
+// KillJob ask for deletion of a job
+func (a *Api) KillJob(jobID int) error {
+	// create url for API call
+	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobID)
 
+	// send delete request
 	_, err := a.del(url)
 
 	return err
