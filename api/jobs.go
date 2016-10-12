@@ -100,22 +100,28 @@ func (a *Api) KillJob(jobID int) error {
 	return err
 }
 
-func (a *Api) waitJobIsReady(job *Job) bool {
-	var err error
-	tmp_job := new(Job)
-
-	for job.State == "waiting" || job.State == "tolaunch" || job.State == "launching" {
-		if tmp_job, err = a.GetJob(job.UID); err != nil {
-			return false
+// WaitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
+func (a *Api) WaitUntilJobIsReady(jobID int) error {
+	// refresh job state
+	for job, err := a.GetJob(jobID); job.State != "running"; job, err = a.GetJob(jobID) {
+		// check if GetJob returned an error
+		if err != nil {
+			return err
 		}
-		*job = *tmp_job
+
+		// stop if the job is in 'error' or 'terminated' state
+		if job.State == "error" || job.State == "terminated" {
+			return fmt.Errorf("Cannot wait for a job in '%s' state", job.State)
+		}
+
+		// warn if job is in 'hold' state
+		if job.State == "hold" {
+			log.Infof("Job id '%s' is in hold state, dont forget to resume it")
+		}
+
+		// wait 3 seconds before making another API call
 		time.Sleep(3 * time.Second)
 	}
 
-	// If the launching failed
-	if job.State != "running" {
-		return false
-	} else {
-		return true
-	}
+	return nil
 }

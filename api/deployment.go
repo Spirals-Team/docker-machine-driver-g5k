@@ -31,7 +31,8 @@ func (a *Api) DeployEnvironment(jobId int, SSHPublicKeyPath string) error {
 	}
 
 	// Wait for the nodes to be running
-	if !a.waitJobIsReady(job) {
+	err = a.WaitUntilJobIsReady(job.UID)
+	if err != nil {
 		return fmt.Errorf("[G5K_api] Job launching failed")
 	}
 
