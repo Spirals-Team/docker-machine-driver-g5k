@@ -3,6 +3,7 @@ package driver
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/Spirals-Team/docker-machine-driver-g5k/api"
@@ -18,7 +19,9 @@ type Driver struct {
 	*drivers.BaseDriver
 	*api.Api
 
-	G5kJobID              int
+	G5kJobID        int
+	G5kDeploymentID string
+
 	G5kUsername           string
 	G5kPassword           string
 	G5kSite               string
@@ -220,7 +223,14 @@ func (d *Driver) GetState() (state.State, error) {
 
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() (err error) {
+	// get api client
 	client := d.getAPI()
+
+	// reading ssh public key file
+	pubkey, err := ioutil.ReadFile(d.G5kSSHPublicKeyPath)
+	if err != nil {
+		return err
+	}
 
 	// convert walltime to seconds
 	seconds, err := api.ConvertDuration(d.G5kWalltime)
@@ -229,7 +239,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 	}
 
 	// creating a new job with 1 node
-	job := api.JobRequest{
+	jobReq := api.JobRequest{
 		Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
 		Command:    fmt.Sprintf("sleep %v", seconds),
 		Properties: d.G5kResourceProperties,
@@ -237,12 +247,38 @@ func (d *Driver) PreCreateCheck() (err error) {
 	}
 
 	// submit job
-	if d.G5kJobID, err = client.SubmitJob(job); err != nil {
+	d.G5kJobID, err = client.SubmitJob(jobReq)
+	if err != nil {
 		return err
 	}
 
+	// wait job
+	if err = client.WaitUntilJobIsReady(d.G5kJobID); err != nil {
+		return err
+	}
+
+	// get job informations
+	job, err := client.GetJob(d.G5kJobID)
+	if err != nil {
+		return err
+	}
+
+	// creating a new deployment request
+	deploymentReq := api.DeploymentRequest{
+		Nodes:       job.Nodes,
+		Environment: d.G5kImage,
+		Key:         string(pubkey),
+	}
+
 	// deploy environment
-	if err = client.DeployEnvironment(d.G5kJobID, d.G5kSSHPublicKeyPath); err != nil {
+	d.G5kDeploymentID, err = client.SubmitDeployment(deploymentReq)
+	if err != nil {
+		return err
+	}
+
+	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
+	log.Info("Waiting for deployment to finish, it will take a few minutes...")
+	if err = client.WaitUntilDeploymentIsFinished(d.G5kDeploymentID); err != nil {
 		return err
 	}
 

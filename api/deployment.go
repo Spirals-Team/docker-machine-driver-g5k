@@ -3,11 +3,19 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"strings"
 	"time"
+
+	"github.com/docker/machine/libmachine/log"
 )
 
+// DeploymentRequest represents a new deployment request
+type DeploymentRequest struct {
+	Nodes       []string `json:"nodes"`
+	Environment string   `json:"environment"`
+	Key         string   `json:"key"`
+}
+
+// Deployment represents a deployment response
 type Deployment struct {
 	Nodes  []string `json:"nodes"`
 	Site   string   `json:"site_uid"`
@@ -16,66 +24,74 @@ type Deployment struct {
 	Links  []Link   `json:"links"`
 }
 
-func (a *Api) DeployEnvironment(jobId int, SSHPublicKeyPath string) error {
+// SubmitDeployment submits a new deployment request to g5k api
+func (a *Api) SubmitDeployment(deploymentReq DeploymentRequest) (string, error) {
+	// create url for API call
 	urlDeploy := fmt.Sprintf("%s/sites/%s/deployments", G5kApiFrontend, a.Site)
 
-	job, err := a.GetJob(jobId)
-	if err != nil {
-		return err
-	}
-
-	// read ssh public key
-	sshPublicKey, err := a.readSSHPublicKey(SSHPublicKeyPath)
-	if err != nil {
-		return err
-	}
-
-	// Wait for the nodes to be running
-	err = a.WaitUntilJobIsReady(job.UID)
-	if err != nil {
-		return fmt.Errorf("[G5K_api] Job launching failed")
-	}
-
-	// Format arguments
-	nodesStrs := make([]string, 0)
-	for _, nodes := range job.Nodes {
-		nodesStrs = append(nodesStrs, `"`+nodes+`"`)
-	}
-	nodesJson := strings.Join(nodesStrs, ",")
-
-	// Deploying
-	deploymentArguments := fmt.Sprintf(`{"nodes": [%s], "environment": %q, "key": %q}`, nodesJson, a.Environment, sshPublicKey)
-	var resp []byte
-	var deployment Deployment
-
-	resp, err = a.post(urlDeploy, deploymentArguments)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(resp, &deployment)
-
-	// Waiting the deployment finishes
-	for deployment.Status == "waiting" || deployment.Status == "processing" {
-		time.Sleep(10 * time.Second)
-		resp, err = a.get(urlDeploy + "/" + deployment.UID)
-		if err != nil {
-			return err
-		} else if err = json.Unmarshal(resp, &deployment); err != nil {
-			return err
-		}
-	}
-	if deployment.Status != "terminated" {
-		return fmt.Errorf("[G5K_api] Deployment failed: status is %s\n", deployment.Status)
-	}
-	return nil
-}
-
-// readSSHPublicKey read the ssh public key file and return the key in a string
-func (a *Api) readSSHPublicKey(SSHPublicKeyPath string) (string, error) {
-	content, err := ioutil.ReadFile(SSHPublicKeyPath)
+	// create deployment request json
+	deploymentArguments, err := json.Marshal(deploymentReq)
 	if err != nil {
 		return "", err
 	}
 
-	return string(content), nil
+	log.Infof("Submitting a new deployment... (image: '%s')", deploymentReq.Environment)
+
+	// send deployment request
+	resp, err := a.post(urlDeploy, string(deploymentArguments))
+	if err != nil {
+		return "", err
+	}
+
+	// unmarshal deployment response
+	var deployment Deployment
+	err = json.Unmarshal(resp, &deployment)
+	if err != nil {
+		return "", err
+	}
+
+	log.Infof("Deployment submitted successfully (id: '%s')", deployment.UID)
+	return deployment.UID, nil
+}
+
+// GetDeployment get the deployment from its id
+func (a *Api) GetDeployment(deploymentID string) (*Deployment, error) {
+	// create url for API call
+	url := fmt.Sprintf("%s/sites/%s/deployments/%s", G5kApiFrontend, a.Site, deploymentID)
+
+	// send request
+	resp, err := a.get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	// unmarshal json response
+	var deployment Deployment
+	err = json.Unmarshal(resp, &deployment)
+	if err != nil {
+		return nil, err
+	}
+
+	return &deployment, nil
+}
+
+// WaitUntilDeploymentIsFinished will wait until the deployment reach the 'terminated' state (no timeout)
+func (a *Api) WaitUntilDeploymentIsFinished(deploymentID string) error {
+	// refresh deployment status
+	for deployment, err := a.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = a.GetDeployment(deploymentID) {
+		// check if GetDeployment returned an error
+		if err != nil {
+			return err
+		}
+
+		// stop if the deployment is in 'canceled' or 'error' state
+		if deployment.Status == "canceled" || deployment.Status == "error" {
+			return fmt.Errorf("Can't wait for a deployment in '%s' state", deployment.Status)
+		}
+
+		// wait 10 seconds before making another API call
+		time.Sleep(10 * time.Second)
+	}
+
+	return nil
 }

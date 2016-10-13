@@ -53,7 +53,7 @@ func (a *Api) SubmitJob(jobReq JobRequest) (int, error) {
 		return 0, err
 	}
 
-	log.Info("Job submitted successfully (id: %s)", job.UID)
+	log.Infof("Job submitted successfully (id: '%v')", job.UID)
 	return job.UID, nil
 }
 
@@ -111,12 +111,12 @@ func (a *Api) WaitUntilJobIsReady(jobID int) error {
 
 		// stop if the job is in 'error' or 'terminated' state
 		if job.State == "error" || job.State == "terminated" {
-			return fmt.Errorf("Cannot wait for a job in '%s' state", job.State)
+			return fmt.Errorf("Can't wait for a job in '%s' state", job.State)
 		}
 
 		// warn if job is in 'hold' state
 		if job.State == "hold" {
-			log.Infof("Job id '%s' is in hold state, dont forget to resume it")
+			log.Infof("Job '%s' is in hold state, dont forget to resume it")
 		}
 
 		// wait 3 seconds before making another API call
