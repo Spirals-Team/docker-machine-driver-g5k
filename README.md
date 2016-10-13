@@ -46,7 +46,7 @@ You need to be connected to the Grid5000 VPN to create and access your Docker no
 Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.  
 Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).
 
-### Options
+### Driver-specific Options
 The driver needs a few options to create a machine. Here is a list of options:
 
 |            Option            |                       Description                       |     Default value     |  Required  |
@@ -70,7 +70,7 @@ Error with pre-create check: "[G5K_api] request failed: 400 Bad Request."
 
 More informations about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
 
-### Example
+### Provisioning Examples
 An example of node provisioning :
 
 ```bash
