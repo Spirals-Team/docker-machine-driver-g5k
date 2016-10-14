@@ -281,6 +281,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 	if err = client.WaitUntilDeploymentIsFinished(d.G5kDeploymentID); err != nil {
 		return err
 	}
+	log.Info("Deployment finished successfully")
 
 	return nil
 }
