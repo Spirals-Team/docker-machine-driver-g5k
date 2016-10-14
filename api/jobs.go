@@ -102,6 +102,8 @@ func (a *Api) KillJob(jobID int) error {
 
 // WaitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
 func (a *Api) WaitUntilJobIsReady(jobID int) error {
+	log.Info("Waiting for job to run...")
+
 	// refresh job state
 	for job, err := a.GetJob(jobID); job.State != "running"; job, err = a.GetJob(jobID) {
 		// check if GetJob returned an error
@@ -123,5 +125,6 @@ func (a *Api) WaitUntilJobIsReady(jobID int) error {
 		time.Sleep(3 * time.Second)
 	}
 
+	log.Info("Job is running")
 	return nil
 }

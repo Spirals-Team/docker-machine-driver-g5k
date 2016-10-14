@@ -77,6 +77,8 @@ func (a *Api) GetDeployment(deploymentID string) (*Deployment, error) {
 
 // WaitUntilDeploymentIsFinished will wait until the deployment reach the 'terminated' state (no timeout)
 func (a *Api) WaitUntilDeploymentIsFinished(deploymentID string) error {
+	log.Info("Waiting for deployment to finish, it will take a few minutes...")
+
 	// refresh deployment status
 	for deployment, err := a.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = a.GetDeployment(deploymentID) {
 		// check if GetDeployment returned an error
@@ -93,5 +95,6 @@ func (a *Api) WaitUntilDeploymentIsFinished(deploymentID string) error {
 		time.Sleep(10 * time.Second)
 	}
 
+	log.Info("Deployment finished successfully")
 	return nil
 }

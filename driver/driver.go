@@ -277,11 +277,9 @@ func (d *Driver) PreCreateCheck() (err error) {
 	}
 
 	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
-	log.Info("Waiting for deployment to finish, it will take a few minutes...")
 	if err = client.WaitUntilDeploymentIsFinished(d.G5kDeploymentID); err != nil {
 		return err
 	}
-	log.Info("Deployment finished successfully")
 
 	return nil
 }
