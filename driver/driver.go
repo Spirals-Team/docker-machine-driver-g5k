@@ -3,6 +3,7 @@ package driver
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/Spirals-Team/docker-machine-driver-g5k/api"
@@ -18,15 +19,17 @@ type Driver struct {
 	*drivers.BaseDriver
 	*api.Api
 
-	JobID                 int
+	G5kJobID        int
+	G5kDeploymentID string
+
 	G5kUsername           string
 	G5kPassword           string
 	G5kSite               string
-	g5kWalltime           string
-	g5kSSHPrivateKeyPath  string
-	g5kSSHPublicKeyPath   string
-	g5kImage              string
-	g5kResourceProperties string
+	G5kWalltime           string
+	G5kSSHPrivateKeyPath  string
+	G5kSSHPublicKeyPath   string
+	G5kImage              string
+	G5kResourceProperties string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -46,7 +49,7 @@ func (d *Driver) DriverName() string {
 
 func (d *Driver) getAPI() *api.Api {
 	if d.Api == nil {
-		d.Api = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite, d.g5kImage)
+		d.Api = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite, d.G5kImage)
 	}
 	return d.Api
 }
@@ -109,21 +112,44 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kUsername = opts.String("g5k-username")
 	d.G5kPassword = opts.String("g5k-password")
 	d.G5kSite = opts.String("g5k-site")
-	d.g5kWalltime = opts.String("g5k-walltime")
-	d.g5kSSHPrivateKeyPath = opts.String("g5k-ssh-private-key")
-
-	// if the user dont specify a public key path, append .pub to the private key path
-	if opts.String("g5k-ssh-public-key") != "" {
-		d.g5kSSHPublicKeyPath = opts.String("g5k-ssh-public-key")
-	} else {
-		d.g5kSSHPublicKeyPath = d.g5kSSHPrivateKeyPath + ".pub"
-	}
-
-	d.g5kImage = opts.String("g5k-image")
-	d.g5kResourceProperties = opts.String("g5k-resource-properties")
+	d.G5kWalltime = opts.String("g5k-walltime")
+	d.G5kSSHPrivateKeyPath = opts.String("g5k-ssh-private-key")
+	d.G5kSSHPublicKeyPath = opts.String("g5k-ssh-public-key")
+	d.G5kImage = opts.String("g5k-image")
+	d.G5kResourceProperties = opts.String("g5k-resource-properties")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
+
+	// username is required
+	if d.G5kUsername == "" {
+		return errors.New("You must give your Grid5000 account username")
+	}
+
+	// password is required
+	if d.G5kPassword == "" {
+		return errors.New("You must give your Grid5000 account password")
+	}
+
+	// site is required
+	if d.G5kSite == "" {
+		return errors.New("You must give the site you want to reserve the resources on")
+	}
+
+	// check if private key exist
+	if _, err := os.Stat(d.G5kSSHPrivateKeyPath); os.IsNotExist(err) {
+		return errors.New("Your ssh private key file does not exist in : '" + d.G5kSSHPrivateKeyPath + "'")
+	}
+
+	// if the user dont specify a public key path, append .pub to the private key path
+	if d.G5kSSHPublicKeyPath == "" {
+		d.G5kSSHPublicKeyPath = d.G5kSSHPrivateKeyPath + ".pub"
+	}
+
+	// check if public key exist
+	if _, err := os.Stat(d.G5kSSHPublicKeyPath); os.IsNotExist(err) {
+		return errors.New("Your ssh public key file does not exist in : ''" + d.G5kSSHPublicKeyPath + "'")
+	}
 
 	return nil
 }
@@ -172,7 +198,7 @@ func (d *Driver) GetURL() (string, error) {
 func (d *Driver) GetState() (state.State, error) {
 	client := d.getAPI()
 
-	status, err := client.GetJobState(d.JobID)
+	status, err := client.GetJobState(d.G5kJobID)
 	if err != nil {
 		return state.Error, err
 	}
@@ -197,35 +223,63 @@ func (d *Driver) GetState() (state.State, error) {
 
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() (err error) {
-	if d.G5kUsername == "" {
-		return errors.New("You must give your Grid5000 account username")
-	}
-	if d.G5kPassword == "" {
-		return errors.New("You must give your Grid5000 account password")
-	}
-	if d.G5kSite == "" {
-		return errors.New("You must give the site you want to reserve the resources on")
-	}
-	if _, err := os.Stat(d.g5kSSHPrivateKeyPath); os.IsNotExist(err) {
-		return errors.New("Your ssh private key file does not exist in : '" + d.g5kSSHPrivateKeyPath + "'")
-	}
-	if _, err := os.Stat(d.g5kSSHPublicKeyPath); os.IsNotExist(err) {
-		return errors.New("Your ssh public key file does not exist in : ''" + d.g5kSSHPublicKeyPath + "'")
-	}
-
+	// get api client
 	client := d.getAPI()
 
-	log.Info("Submitting job...")
-	if d.JobID, err = client.SubmitJob(d.g5kWalltime, d.g5kResourceProperties); err != nil {
+	// reading ssh public key file
+	pubkey, err := ioutil.ReadFile(d.G5kSSHPublicKeyPath)
+	if err != nil {
 		return err
 	}
-	log.Info("Nodes allocated and ready")
 
-	log.Info("Deploying environment. It will take a few minutes...")
-	if err = client.DeployEnvironment(d.JobID, d.g5kSSHPublicKeyPath); err != nil {
+	// convert walltime to seconds
+	seconds, err := api.ConvertDuration(d.G5kWalltime)
+	if err != nil {
 		return err
 	}
-	log.Info("Environment deployed")
+
+	// creating a new job with 1 node
+	jobReq := api.JobRequest{
+		Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
+		Command:    fmt.Sprintf("sleep %v", seconds),
+		Properties: d.G5kResourceProperties,
+		Types:      []string{"deploy"},
+	}
+
+	// submit job
+	d.G5kJobID, err = client.SubmitJob(jobReq)
+	if err != nil {
+		return err
+	}
+
+	// wait job
+	if err = client.WaitUntilJobIsReady(d.G5kJobID); err != nil {
+		return err
+	}
+
+	// get job informations
+	job, err := client.GetJob(d.G5kJobID)
+	if err != nil {
+		return err
+	}
+
+	// creating a new deployment request
+	deploymentReq := api.DeploymentRequest{
+		Nodes:       job.Nodes,
+		Environment: d.G5kImage,
+		Key:         string(pubkey),
+	}
+
+	// deploy environment
+	d.G5kDeploymentID, err = client.SubmitDeployment(deploymentReq)
+	if err != nil {
+		return err
+	}
+
+	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
+	if err = client.WaitUntilDeploymentIsFinished(d.G5kDeploymentID); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -234,14 +288,14 @@ func (d *Driver) PreCreateCheck() (err error) {
 func (d *Driver) Create() (err error) {
 	// Get IP address from API
 	client := d.getAPI()
-	if job, err := client.GetJob(d.JobID); err != nil {
+	if job, err := client.GetJob(d.G5kJobID); err != nil {
 		return err
 	} else {
 		d.BaseDriver.IPAddress = job.Nodes[0]
 	}
 
 	// Copy the SSH private key to the docker machine config folder
-	src, dst := d.g5kSSHPrivateKeyPath, d.GetSSHKeyPath()
+	src, dst := d.G5kSSHPrivateKeyPath, d.GetSSHKeyPath()
 	if err = mcnutils.CopyFile(src, dst); err != nil {
 		return err
 	}
@@ -253,7 +307,7 @@ func (d *Driver) Create() (err error) {
 func (d *Driver) Remove() error {
 	client := d.getAPI()
 	log.Info("Killing job...")
-	client.KillJob(d.JobID)
+	client.KillJob(d.G5kJobID)
 
 	// We get an error if the job was already dead, which is not really an error
 	return nil

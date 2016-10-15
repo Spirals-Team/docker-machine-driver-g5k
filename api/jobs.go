@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/docker/machine/libmachine/log"
 )
 
+// JobRequest represents a new job submission
 type JobRequest struct {
 	Resources  string   `json:"resources"`
 	Command    string   `json:"command"`
@@ -13,8 +16,9 @@ type JobRequest struct {
 	Types      []string `json:"types"`
 }
 
+// Job represents an existing job
 type Job struct {
-	Uid       int      `json:"uid"`
+	UID       int      `json:"uid"`
 	State     string   `json:"state"`
 	Timelife  int      `json:"walltime"`
 	Types     []string `json:"types"`
@@ -23,107 +27,104 @@ type Job struct {
 	Nodes     []string `json:"assigned_nodes"`
 }
 
-// convertDuration take a string "hh:mm:ss" and convert it in seconds
-func convertDuration(t string) (int, error) {
-	var h, m, s int
+// SubmitJob submit a new job on g5k api and return the job id
+func (a *Api) SubmitJob(jobReq JobRequest) (int, error) {
+	// create url for API call
+	urlAPI := fmt.Sprintf("%s/sites/%s/jobs", G5kApiFrontend, a.Site)
 
-	if _, err := fmt.Sscanf(t, "%d:%d:%d", &h, &m, &s); err != nil {
-		return 0, err
-	}
-
-	return (h * 3600) + (m * 60) + s, nil
-}
-
-// Submit a job on G5K. Returns the job ID.
-func (a *Api) SubmitJob(walltime, resourceProperties string) (int, error) {
-	urlSubmit := fmt.Sprintf("%s/sites/%s/jobs", G5kApiFrontend, a.Site)
-
-	seconds, err := convertDuration(walltime)
+	// create job request json
+	params, err := json.Marshal(jobReq)
 	if err != nil {
 		return 0, err
 	}
 
-	// create a new Job request (1 node)
-	params, err := json.Marshal(JobRequest{
-		Resources:  fmt.Sprintf("nodes=1,walltime=%s", walltime),
-		Command:    fmt.Sprintf("sleep %v", seconds),
-		Properties: resourceProperties,
-		Types:      []string{"deploy"},
-	})
+	log.Info("Submitting a new job...")
 
+	// send job request
+	resp, err := a.post(urlAPI, string(params))
 	if err != nil {
 		return 0, err
 	}
 
+	// unmarshal json response
 	var job Job
-	var resp []byte
-
-	if resp, err = a.post(urlSubmit, string(params)); err != nil {
+	err = json.Unmarshal(resp, &job)
+	if err != nil {
 		return 0, err
-	} else {
-		err = json.Unmarshal(resp, &job)
-		return job.Uid, err
 	}
+
+	log.Infof("Job submitted successfully (id: '%v')", job.UID)
+	return job.UID, nil
 }
 
-// Refresh job's state
-func (a *Api) GetJob(jobId int) (*Job, error) {
-	job := new(Job)
-	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobId)
+// GetJob get the job from its id
+func (a *Api) GetJob(jobID int) (*Job, error) {
+	// create url for API call
+	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobID)
 
-	if resp, err := a.get(url); err != nil {
-		return &Job{}, err
-	} else {
-		err = json.Unmarshal(resp, &job)
-		return job, err
+	// send request
+	resp, err := a.get(url)
+	if err != nil {
+		return nil, err
 	}
+
+	// unmarshal json response
+	var job Job
+	err = json.Unmarshal(resp, &job)
+	if err != nil {
+		return nil, err
+	}
+
+	return &job, nil
 }
 
-// Returns the job's current state
-func (a *Api) GetJobState(jobId int) (string, error) {
-	if job, err := a.GetJob(jobId); err != nil {
+// GetJobState returns the current state of the job
+func (a *Api) GetJobState(jobID int) (string, error) {
+	// get job from api
+	job, err := a.GetJob(jobID)
+	if err != nil {
 		return "", err
-	} else if a.jobIsOver(job) {
-		return "terminated", nil
-	} else {
-		return job.State, nil
 	}
+
+	return job.State, nil
 }
 
-// Returns true if the job expired, false otherwise
-func (a *Api) jobIsOver(job *Job) bool {
-	currentTime := time.Now().Unix()
-	startTime := int64(job.StartTime)
-	timelife := int64(job.Timelife)
+// KillJob ask for deletion of a job
+func (a *Api) KillJob(jobID int) error {
+	// create url for API call
+	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobID)
 
-	return (currentTime - startTime) >= timelife
-}
-
-// Free the nodes allocated to the jobs
-func (a *Api) KillJob(jobId int) error {
-	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kApiFrontend, a.Site, jobId)
-
+	// send delete request
 	_, err := a.del(url)
 
 	return err
 }
 
-func (a *Api) waitJobIsReady(job *Job) bool {
-	var err error
-	tmp_job := new(Job)
+// WaitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
+func (a *Api) WaitUntilJobIsReady(jobID int) error {
+	log.Info("Waiting for job to run...")
 
-	for job.State == "waiting" || job.State == "tolaunch" || job.State == "launching" {
-		if tmp_job, err = a.GetJob(job.Uid); err != nil {
-			return false
+	// refresh job state
+	for job, err := a.GetJob(jobID); job.State != "running"; job, err = a.GetJob(jobID) {
+		// check if GetJob returned an error
+		if err != nil {
+			return err
 		}
-		*job = *tmp_job
+
+		// stop if the job is in 'error' or 'terminated' state
+		if job.State == "error" || job.State == "terminated" {
+			return fmt.Errorf("Can't wait for a job in '%s' state", job.State)
+		}
+
+		// warn if job is in 'hold' state
+		if job.State == "hold" {
+			log.Infof("Job '%s' is in hold state, dont forget to resume it")
+		}
+
+		// wait 3 seconds before making another API call
 		time.Sleep(3 * time.Second)
 	}
 
-	// If the launching failed
-	if job.State != "running" {
-		return false
-	} else {
-		return true
-	}
+	log.Info("Job is running")
+	return nil
 }
