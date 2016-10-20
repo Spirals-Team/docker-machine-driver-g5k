@@ -46,7 +46,7 @@ You need to be connected to the Grid5000 VPN to create and access your Docker no
 Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.  
 Please follow the instructions on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).
 
-### Driver-specific Options
+### Driver-specific options
 The driver needs a few options to create a machine. Here is a list of options:
 
 |            Option            |                       Description                       |     Default value     |  Required  |
@@ -59,6 +59,8 @@ The driver needs a few options to create a machine. Here is a list of options:
 | `--g5k-ssh-public-key`       | Path of your ssh public key                             | "< private-key >.pub" | No         |
 | `--g5k-image`                | Name of the image to deploy                             | "jessie-x64-min"      | No         |
 | `--g5k-resource-properties`  | Resource selection with OAR properties (SQL format)     |                       | No         |
+| `--g5k-use-job-reservation`  | job ID to use (need to be an already existing job ID)   |                       | No         |
+| `--g5k-host-to-provision`    | Host to provision (host need to be already deployed)    |                       | No         |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -70,7 +72,7 @@ Error with pre-create check: "[G5K_api] request failed: 400 Bad Request."
 
 More informations about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
 
-### Provisioning Examples
+### Provisioning examples
 An example of node provisioning :
 
 ```bash
@@ -82,7 +84,7 @@ docker-machine create -d g5k \
 test-node
 ```
 
-An example with resource properties (node in cluster 'chimint' with more thant 8Gb of ram and at least 4 CPU cores)
+An example with resource properties (node in cluster 'chimint' with more thant 8Gb of ram and at least 4 CPU cores) :
 
 ```bash
 docker-machine create -d g5k \
@@ -93,3 +95,16 @@ docker-machine create -d g5k \
 --g5k-resource-properties "cluster = 'chimint' and memnode > 8192 and cpucore >= 4" \
 test-node
 ```
+
+An example using an existing oarsub job ID and a host already deployed with kadeploy3 :
+
+```bash
+docker-machine create -d g5k \
+--g5k-username user \
+--g5k-password ******** \
+--g5k-site lille \
+--g5k-ssh-private-key ~/.ssh/g5k-key \
+--g5k-use-job-reservation 1234567 \
+--g5k-host-to-provision "chinqchint-xx.lille.grid5000.fr" \
+test-node
+``` 
