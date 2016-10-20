@@ -15,6 +15,7 @@ import (
 	"github.com/docker/machine/libmachine/state"
 )
 
+// Driver parameters
 type Driver struct {
 	*drivers.BaseDriver
 	*api.Api
@@ -30,6 +31,7 @@ type Driver struct {
 	G5kSSHPublicKeyPath   string
 	G5kImage              string
 	G5kResourceProperties string
+	G5kHostToProvision    string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -104,6 +106,17 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage: "Resource selection with OAR properties (SQL format)",
 			Value: "",
 		},
+
+		mcnflag.IntFlag{
+			Name:  "g5k-use-job-reservation",
+			Usage: "job ID to use (need to be an already existing job ID, because job reservation will be skipped)",
+		},
+
+		mcnflag.StringFlag{
+			Name:  "g5k-host-to-provision",
+			Usage: "Host to provision (host need to be already deployed, because deployment step will be skipped)",
+			Value: "",
+		},
 	}
 }
 
@@ -117,6 +130,8 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kSSHPublicKeyPath = opts.String("g5k-ssh-public-key")
 	d.G5kImage = opts.String("g5k-image")
 	d.G5kResourceProperties = opts.String("g5k-resource-properties")
+	d.G5kJobID = opts.Int("g5k-use-job-reservation")
+	d.G5kHostToProvision = opts.String("g5k-host-to-provision")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -232,24 +247,29 @@ func (d *Driver) PreCreateCheck() (err error) {
 		return err
 	}
 
-	// convert walltime to seconds
-	seconds, err := api.ConvertDuration(d.G5kWalltime)
-	if err != nil {
-		return err
-	}
+	// skip job reservation if an ID is already set
+	if d.G5kJobID == 0 {
+		// convert walltime to seconds
+		seconds, err := api.ConvertDuration(d.G5kWalltime)
+		if err != nil {
+			return err
+		}
 
-	// creating a new job with 1 node
-	jobReq := api.JobRequest{
-		Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
-		Command:    fmt.Sprintf("sleep %v", seconds),
-		Properties: d.G5kResourceProperties,
-		Types:      []string{"deploy"},
-	}
+		// creating a new job with 1 node
+		jobReq := api.JobRequest{
+			Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
+			Command:    fmt.Sprintf("sleep %v", seconds),
+			Properties: d.G5kResourceProperties,
+			Types:      []string{"deploy"},
+		}
 
-	// submit job
-	d.G5kJobID, err = client.SubmitJob(jobReq)
-	if err != nil {
-		return err
+		// submit job
+		d.G5kJobID, err = client.SubmitJob(jobReq)
+		if err != nil {
+			return err
+		}
+	} else {
+		log.Infof("Skipping job reservation and using job ID '%v'", d.G5kJobID)
 	}
 
 	// wait job
@@ -257,40 +277,51 @@ func (d *Driver) PreCreateCheck() (err error) {
 		return err
 	}
 
-	// get job informations
-	job, err := client.GetJob(d.G5kJobID)
-	if err != nil {
-		return err
-	}
+	// skip deployment if provisionning only mode is used
+	if d.G5kHostToProvision == "" {
+		// get job informations
+		job, err := client.GetJob(d.G5kJobID)
+		if err != nil {
+			return err
+		}
 
-	// creating a new deployment request
-	deploymentReq := api.DeploymentRequest{
-		Nodes:       job.Nodes,
-		Environment: d.G5kImage,
-		Key:         string(pubkey),
-	}
+		// creating a new deployment request
+		deploymentReq := api.DeploymentRequest{
+			Nodes:       job.Nodes,
+			Environment: d.G5kImage,
+			Key:         string(pubkey),
+		}
 
-	// deploy environment
-	d.G5kDeploymentID, err = client.SubmitDeployment(deploymentReq)
-	if err != nil {
-		return err
-	}
+		// deploy environment
+		d.G5kDeploymentID, err = client.SubmitDeployment(deploymentReq)
+		if err != nil {
+			return err
+		}
 
-	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
-	if err = client.WaitUntilDeploymentIsFinished(d.G5kDeploymentID); err != nil {
-		return err
+		// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
+		if err = client.WaitUntilDeploymentIsFinished(d.G5kDeploymentID); err != nil {
+			return err
+		}
+	} else {
+		log.Infof("Skipping host deployment and provisionning host '%s' only", d.G5kHostToProvision)
 	}
 
 	return nil
 }
 
-// Create deploy the environment and create the Docker machine
+// Create copy ssh key in docker-machine dir and set the node IP
 func (d *Driver) Create() (err error) {
-	// Get IP address from API
-	client := d.getAPI()
-	if job, err := client.GetJob(d.G5kJobID); err != nil {
-		return err
+	// provisionning only mode
+	if d.G5kHostToProvision != "" {
+		// use provided hostname
+		d.BaseDriver.IPAddress = d.G5kHostToProvision
 	} else {
+		// get hostname from API
+		client := d.getAPI()
+		job, err := client.GetJob(d.G5kJobID)
+		if err != nil {
+			return err
+		}
 		d.BaseDriver.IPAddress = job.Nodes[0]
 	}
 
@@ -300,32 +331,41 @@ func (d *Driver) Create() (err error) {
 		return err
 	}
 
+	// change private key file mode or ssh will complain about it
+	if err := os.Chmod(dst, 0600); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Remove delete the resources reservation
 func (d *Driver) Remove() error {
-	client := d.getAPI()
 	log.Info("Killing job...")
+
+	client := d.getAPI()
 	client.KillJob(d.G5kJobID)
 
 	// We get an error if the job was already dead, which is not really an error
 	return nil
 }
 
-// TODO To implement
+// Kill don't do anything
 func (d *Driver) Kill() error {
 	return fmt.Errorf("Cannot kill a machine on G5K")
 }
 
+// Start don't do anything
 func (d *Driver) Start() error {
 	return fmt.Errorf("Cannot start a machine on G5K")
 }
 
+// Stop don't do anything
 func (d *Driver) Stop() error {
 	return fmt.Errorf("Cannot stop a machine on G5K")
 }
 
+// Restart don't do anything
 func (d *Driver) Restart() error {
 	return fmt.Errorf("Cannot restart a machine on G5K")
 }
