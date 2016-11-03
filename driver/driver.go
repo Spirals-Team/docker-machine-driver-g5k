@@ -51,7 +51,7 @@ func (d *Driver) DriverName() string {
 
 func (d *Driver) getAPI() *api.Api {
 	if d.Api == nil {
-		d.Api = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite, d.G5kImage)
+		d.Api = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite)
 	}
 	return d.Api
 }
