@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,11 +12,10 @@ const (
 )
 
 type Api struct {
-	client      http.Client
-	Username    string
-	Passwd      string
-	Site        string
-	Environment string
+	client   http.Client
+	Username string
+	Passwd   string
+	Site     string
 }
 
 type CollectionHeader struct {
@@ -31,45 +29,12 @@ type Link struct {
 	Type         string `json:"type"`
 }
 
-func NewApi(username, password, site, image string) *Api {
+func NewApi(username, password, site string) *Api {
 	return &Api{
-		Username:    username,
-		Passwd:      password,
-		Site:        site,
-		Environment: image,
+		Username: username,
+		Passwd:   password,
+		Site:     site,
 	}
-}
-
-func (a *Api) GetSiteClusters() (interface{}, error) {
-	var jsonClustersInfo struct {
-		CollectionHeader
-		Items []struct {
-			Uid string `json:"uid"`
-		} `json:"items"`
-	}
-
-	// Looking for the clusters available on the site
-	var urlClusters string = G5kApiFrontend + "/sites/" + a.Site + "/clusters"
-	if resp, errResp := a.get(urlClusters); errResp != nil {
-		return nil, errResp
-	} else {
-		if errJson := json.Unmarshal(resp, &jsonClustersInfo); errJson != nil {
-			return nil, errJson
-		}
-	}
-
-	for _, cluster := range jsonClustersInfo.Items {
-		var urlNodes string = urlClusters + "/" + cluster.Uid + "/nodes"
-		if resp, errResp := a.get(urlNodes); errResp != nil {
-			return nil, errResp
-		} else {
-			var data interface{}
-			if errJson := json.Unmarshal(resp, &data); errJson != nil {
-				return nil, errJson
-			}
-		}
-	}
-	return "prout", nil
 }
 
 func (a *Api) get(url string) ([]byte, error) {
@@ -100,11 +65,12 @@ func (a *Api) request(method, url, args string) ([]byte, error) {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	if resp, err := a.client.Do(req); err != nil {
+	resp, err := a.client.Do(req)
+	if err != nil {
 		return nil, err
-	} else {
-		return response(resp)
 	}
+
+	return response(resp)
 }
 
 func response(response *http.Response) ([]byte, error) {
@@ -113,13 +79,13 @@ func response(response *http.Response) ([]byte, error) {
 	// Check whether the request succeeded or not
 	if response.StatusCode < 200 || response.StatusCode >= 400 {
 		errorText := http.StatusText(response.StatusCode)
-		return nil, fmt.Errorf("[G5K_api] request failed: %v %s.", response.StatusCode, errorText)
+		return nil, fmt.Errorf("[G5K_api] request failed: %v %s", response.StatusCode, errorText)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
-	} else {
-		return body, nil
 	}
+
+	return body, nil
 }
