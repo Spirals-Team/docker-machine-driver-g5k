@@ -6,15 +6,15 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It can be used 
 ## Requirements
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
 * [Docker Machine](https://docs.docker.com/machine/install-machine)
-* [Go tools](https://golang.org/doc/install)
+* [Go tools (Only for installation from sources)](https://golang.org/doc/install)
 
 You need a Grid5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
 ## Installation from GitHub releases
-Binary releases are available for Linux, MacOS and Windows from the [releases page](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases).
+Binary releases for Linux, MacOS and Windows using x86/x86_64 CPU architectures are available in the [releases page](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases).
 You can use the following commands to install or upgrade the driver:
 ```bash
-# download the binary for your OS
+# download the binary for your OS and CPU architecture :
 sudo curl -L -o /usr/local/bin/docker-machine-driver-g5k "<link to release>"
 
 # grant execution rigths to the driver for everyone :

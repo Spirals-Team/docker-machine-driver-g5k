@@ -249,16 +249,10 @@ func (d *Driver) PreCreateCheck() (err error) {
 
 	// skip job reservation if an ID is already set
 	if d.G5kJobID == 0 {
-		// convert walltime to seconds
-		seconds, err := api.ConvertDuration(d.G5kWalltime)
-		if err != nil {
-			return err
-		}
-
 		// creating a new job with 1 node
 		jobReq := api.JobRequest{
 			Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
-			Command:    fmt.Sprintf("sleep %v", seconds),
+			Command:    "sleep 365d",
 			Properties: d.G5kResourceProperties,
 			Types:      []string{"deploy"},
 		}

@@ -4,9 +4,15 @@ language: go
 go_import_path: github.com/Spirals-Team/docker-machine-driver-g5k
 
 env:
+    # Linux
     - GIMME_OS=linux GIMME_ARCH=amd64
+    - GIMME_OS=linux GIMME_ARCH=386
+    # MacOS
     - GIMME_OS=darwin GIMME_ARCH=amd64
+    - GIMME_OS=darwin GIMME_ARCH=386
+    # Windows
     - GIMME_OS=windows GIMME_ARCH=amd64
+    - GIMME_OS=windows GIMME_ARCH=386
 
 install:
     - go get -d -v ./...
@@ -19,9 +25,7 @@ deploy:
     provider: releases
     skip_cleanup: true
     file: "docker-machine-driver-g5k-$GIMME_OS-$GIMME_ARCH"
-
     on:
         tags: true
-    
     api_key:
         secure: Dbz7sdvLuyPFThLoTZCf3SeTTAxJgXWQ3q8Jdz4KEBJtPJQH1Q+9c7nEq/A2iI2GLvyMzntSB7BqCz8+XxIRTa1WwSkWIFC81KDnjS6Y2QtKzsn2SXprKDDkueK+9H5hsTjM6sw9CWgb5y8vWTF6ZeCW0wViUm4Sz8XzDGa4mcvCL6om6SWuKgHmfFBgj1qkhrrOzistxYDZHM6UjEAw8XYlZ0Q1peRleHZ+JbFyArkVak5XOOt6EtOCfztad9uNgWWqnfGoSDs+hE9++NVy5AO7jhzwln4scIsSjntnrjlgTSBGCH9WyhnuwTbY3Z0IcO3sQa6cKi5FNiVKFT27fj7nsh4fuqMW894Fq/dOS+fKuwzQnqZAtJvzPjoy1rDqmP19D1UfMelI+l7Qb7XRoYqt7oGgEiZQp6xJx9U3g45iKQibLBaL/Quhqc/a94YLdskoZ54JbuaNoKGimESvmAua8oRbIc9hg9Fh9XfSWdgw7ZP8Ivz18G+r5W6JnqpTlgjC6k/2PIqXuHO0Ll2ryeQL7T803OPThMSS0CDgKsxDH27tiFsKLMsdnYb8SUgA82NaMIAL3RKWGWbegFWlfPobebhKyM4YDt6Q88VRWgZ6RTfU+TbTg47Xoljx2W6RUEtOj1W8SBYeFNE17VJlsEYslQrmSJsFte9x80/mIas=
