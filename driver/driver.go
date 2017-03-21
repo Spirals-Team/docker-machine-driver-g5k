@@ -50,62 +50,72 @@ func (d *Driver) DriverName() string {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
-			Name:  "g5k-username",
-			Usage: "Your Grid5000 account username",
-			Value: "",
+			EnvVar: "G5K_USERNAME",
+			Name:   "g5k-username",
+			Usage:  "Your Grid5000 account username",
+			Value:  "",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-password",
-			Usage: "Your Grid5000 account password",
-			Value: "",
+			EnvVar: "G5K_PASSWORD",
+			Name:   "g5k-password",
+			Usage:  "Your Grid5000 account password",
+			Value:  "",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-site",
-			Usage: "Site to reserve the resources on",
-			Value: "",
+			EnvVar: "G5K_SITE",
+			Name:   "g5k-site",
+			Usage:  "Site to reserve the resources on",
+			Value:  "",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-walltime",
-			Usage: "Machine's lifetime (HH:MM:SS)",
-			Value: "1:00:00",
+			EnvVar: "G5K_WALLTIME",
+			Name:   "g5k-walltime",
+			Usage:  "Machine's lifetime (HH:MM:SS)",
+			Value:  "1:00:00",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-ssh-private-key",
-			Usage: "Path of your ssh private key (Only RSA keys in PEM format are supported)",
-			Value: "",
+			EnvVar: "G5K_SSH_PRIVATE_KEY",
+			Name:   "g5k-ssh-private-key",
+			Usage:  "Path of your ssh private key (Only RSA keys in PEM format are supported)",
+			Value:  "",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-ssh-public-key",
-			Usage: "Path of your ssh public key (Only RSA keys in AuthorizedKey format are supported) ",
-			Value: "",
+			EnvVar: "G5K_SSH_PUBLIC_KEY",
+			Name:   "g5k-ssh-public-key",
+			Usage:  "Path of your ssh public key (Only RSA keys in AuthorizedKey format are supported) ",
+			Value:  "",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-image",
-			Usage: "Name of the image to deploy",
-			Value: "jessie-x64-min",
+			EnvVar: "G5K_IMAGE",
+			Name:   "g5k-image",
+			Usage:  "Name of the image to deploy",
+			Value:  "jessie-x64-min",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-resource-properties",
-			Usage: "Resource selection with OAR properties (SQL format)",
-			Value: "",
+			EnvVar: "G5K_RESOURCE_PROPERTIES",
+			Name:   "g5k-resource-properties",
+			Usage:  "Resource selection with OAR properties (SQL format)",
+			Value:  "",
 		},
 
 		mcnflag.IntFlag{
-			Name:  "g5k-use-job-reservation",
-			Usage: "job ID to use (need to be an already existing job ID, because job reservation will be skipped)",
+			EnvVar: "G5K_USE_JOB_RESERVATION",
+			Name:   "g5k-use-job-reservation",
+			Usage:  "job ID to use (need to be an already existing job ID, because job reservation will be skipped)",
 		},
 
 		mcnflag.StringFlag{
-			Name:  "g5k-host-to-provision",
-			Usage: "Host to provision (host need to be already deployed, because deployment step will be skipped)",
-			Value: "",
+			EnvVar: "G5K_HOST_TO_PROVISION",
+			Name:   "g5k-host-to-provision",
+			Usage:  "Host to provision (host need to be already deployed, because deployment step will be skipped)",
+			Value:  "",
 		},
 	}
 }
