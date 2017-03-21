@@ -52,8 +52,6 @@ The driver needs a few options to create a machine. Here is a list of the suppor
 | `--g5k-password`             | Your Grid5000 account password                          |                       | Yes        |
 | `--g5k-site`                 | Site to reserve the resources on                        |                       | Yes        |
 | `--g5k-walltime`             | Timelife of the machine                                 | "1:00:00"             | No         |
-| `--g5k-ssh-private-key`      | Path of your ssh private key                            | "~/.ssh/id_rsa"       | No         |
-| `--g5k-ssh-public-key`       | Path of your ssh public key                             | "< private-key >.pub" | No         |
 | `--g5k-image`                | Name of the image to deploy                             | "jessie-x64-min"      | No         |
 | `--g5k-resource-properties`  | Resource selection with OAR properties (SQL format)     |                       | No         |
 | `--g5k-use-job-reservation`  | Job ID to use (need to be an already existing job ID)   |                       | No         |
@@ -72,20 +70,26 @@ More informations about usage of OAR properties are available on the [Grid5000 W
 An example of node provisioning:
 ```bash
 docker-machine create -d g5k \
---g5k-username user \
---g5k-password ******** \
---g5k-site lille \
---g5k-ssh-private-key ~/.ssh/g5k-key \
+--g5k-username "user" \
+--g5k-password "********" \
+--g5k-site "lille" \
 test-node
+```
+
+An example of node provisioning using environment variables:
+```bash
+export G5K_USERNAME="user"
+export G5K_PASSWORD="********"
+export G5K_SITE="lille"
+docker-machine create -d g5k test-node
 ```
 
 An example with resource properties (node in cluster `chimint` with more thant 8GB of RAM and at least 4 CPU cores):
 ```bash
 docker-machine create -d g5k \
---g5k-username user \
---g5k-password ******** \
---g5k-site lille \
---g5k-ssh-private-key ~/.ssh/g5k-key \
+--g5k-username "user" \
+--g5k-password "********" \
+--g5k-site "lille" \
 --g5k-resource-properties "cluster = 'chimint' and memnode > 8192 and cpucore >= 4" \
 test-node
 ```
@@ -93,10 +97,9 @@ test-node
 An example using an existing oarsub job ID and a host already deployed with kadeploy3:
 ```bash
 docker-machine create -d g5k \
---g5k-username user \
---g5k-password ******** \
---g5k-site lille \
---g5k-ssh-private-key ~/.ssh/g5k-key \
+--g5k-username "user" \
+--g5k-password "********" \
+--g5k-site "lille" \
 --g5k-use-job-reservation 1234567 \
 --g5k-host-to-provision "chinqchint-xx.lille.grid5000.fr" \
 test-node
