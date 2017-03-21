@@ -1,8 +1,8 @@
 package driver
 
 import (
-	"errors"
 	"fmt"
+	"net"
 
 	"github.com/Spirals-Team/docker-machine-driver-g5k/api"
 
@@ -138,17 +138,17 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 
 	// username is required
 	if d.G5kUsername == "" {
-		return errors.New("You must give your Grid5000 account username")
+		return fmt.Errorf("You must give your Grid5000 account username")
 	}
 
 	// password is required
 	if d.G5kPassword == "" {
-		return errors.New("You must give your Grid5000 account password")
+		return fmt.Errorf("You must give your Grid5000 account password")
 	}
 
 	// site is required
 	if d.G5kSite == "" {
-		return errors.New("You must give the site you want to reserve the resources on")
+		return fmt.Errorf("You must give the site you want to reserve the resources on")
 	}
 
 	// use of provided SSH key
@@ -161,7 +161,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 
 // GetIP returns the ip
 func (d *Driver) GetIP() (string, error) {
-	return d.BaseDriver.IPAddress, nil
+	return d.BaseDriver.GetIP()
 }
 
 // GetMachineName returns the machine name
@@ -191,12 +191,14 @@ func (d *Driver) GetSSHUsername() string {
 
 // GetURL returns the URL of the docker daemon
 func (d *Driver) GetURL() (string, error) {
-	url, err := d.BaseDriver.GetIP()
+	// get IP address
+	ip, err := d.GetIP()
 	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("tcp://%s:2376", url), nil
+	// format URL 'tcp://host:2376'
+	return fmt.Sprintf("tcp://%s", net.JoinHostPort(ip, "2376")), nil
 }
 
 // GetState returns the state of the node
@@ -287,20 +289,20 @@ func (d *Driver) Remove() error {
 
 // Kill don't do anything
 func (d *Driver) Kill() error {
-	return fmt.Errorf("Cannot kill a machine on G5K")
+	return fmt.Errorf("You can't kill a machine on Grid'5000")
 }
 
 // Start don't do anything
 func (d *Driver) Start() error {
-	return fmt.Errorf("Cannot start a machine on G5K")
+	return fmt.Errorf("You can't start a machine on Grid'5000")
 }
 
 // Stop don't do anything
 func (d *Driver) Stop() error {
-	return fmt.Errorf("Cannot stop a machine on G5K")
+	return fmt.Errorf("You can't stop a machine on Grid'5000")
 }
 
 // Restart don't do anything
 func (d *Driver) Restart() error {
-	return fmt.Errorf("Cannot restart a machine on G5K")
+	return fmt.Errorf("You can't restart a machine on Grid'5000")
 }
