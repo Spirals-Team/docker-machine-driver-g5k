@@ -76,6 +76,14 @@ docker-machine create -d g5k \
 test-node
 ```
 
+An example of node provisioning using environment variables:
+```bash
+export G5K_USERNAME="user"
+export G5K_PASSWORD="********"
+export G5K_SITE="lille"
+docker-machine create -d g5k test-node
+```
+
 An example with resource properties (node in cluster `chimint` with more thant 8GB of RAM and at least 4 CPU cores):
 ```bash
 docker-machine create -d g5k \
