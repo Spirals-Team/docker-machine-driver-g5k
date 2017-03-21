@@ -23,8 +23,6 @@ type Driver struct {
 	G5kPassword           string
 	G5kSite               string
 	G5kWalltime           string
-	G5kSSHPrivateKeyPath  string
-	G5kSSHPublicKeyPath   string
 	G5kImage              string
 	G5kResourceProperties string
 	G5kHostToProvision    string
@@ -78,20 +76,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 
 		mcnflag.StringFlag{
-			EnvVar: "G5K_SSH_PRIVATE_KEY",
-			Name:   "g5k-ssh-private-key",
-			Usage:  "Path of your ssh private key (Only RSA keys in PEM format are supported)",
-			Value:  "",
-		},
-
-		mcnflag.StringFlag{
-			EnvVar: "G5K_SSH_PUBLIC_KEY",
-			Name:   "g5k-ssh-public-key",
-			Usage:  "Path of your ssh public key (Only RSA keys in AuthorizedKey format are supported) ",
-			Value:  "",
-		},
-
-		mcnflag.StringFlag{
 			EnvVar: "G5K_IMAGE",
 			Name:   "g5k-image",
 			Usage:  "Name of the image to deploy",
@@ -126,8 +110,6 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kPassword = opts.String("g5k-password")
 	d.G5kSite = opts.String("g5k-site")
 	d.G5kWalltime = opts.String("g5k-walltime")
-	d.G5kSSHPrivateKeyPath = opts.String("g5k-ssh-private-key")
-	d.G5kSSHPublicKeyPath = opts.String("g5k-ssh-public-key")
 	d.G5kImage = opts.String("g5k-image")
 	d.G5kResourceProperties = opts.String("g5k-resource-properties")
 	d.G5kJobID = opts.Int("g5k-use-job-reservation")
@@ -149,11 +131,6 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	// site is required
 	if d.G5kSite == "" {
 		return fmt.Errorf("You must give the site you want to reserve the resources on")
-	}
-
-	// use of provided SSH key
-	if d.G5kSSHPrivateKeyPath != "" {
-		return fmt.Errorf("Use of existing SSH keys disabled for now")
 	}
 
 	return nil
@@ -237,13 +214,10 @@ func (d *Driver) PreCreateCheck() (err error) {
 		return err
 	}
 
-	// check if a SSH key pair is set
-	if d.SSHKeyPair == nil {
-		// generate a new SSH key pair
-		d.SSHKeyPair, err = ssh.NewKeyPair()
-		if err != nil {
-			return fmt.Errorf("Error when generating a new SSH key pair: %s", err.Error())
-		}
+	// generate a new SSH key pair
+	d.SSHKeyPair, err = ssh.NewKeyPair()
+	if err != nil {
+		return fmt.Errorf("Error when generating a new SSH key pair: %s", err.Error())
 	}
 
 	// submit new deployment
