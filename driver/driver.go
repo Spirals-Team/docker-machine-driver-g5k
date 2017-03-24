@@ -26,7 +26,7 @@ type Driver struct {
 	G5kImage              string
 	G5kResourceProperties string
 	G5kHostToProvision    string
-	SSHKeyPair            *ssh.KeyPair `json:"-"` // remove this field from machine config
+	SSHKeyPair            *ssh.KeyPair
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -214,10 +214,13 @@ func (d *Driver) PreCreateCheck() (err error) {
 		return err
 	}
 
-	// generate a new SSH key pair
-	d.SSHKeyPair, err = ssh.NewKeyPair()
-	if err != nil {
-		return fmt.Errorf("Error when generating a new SSH key pair: %s", err.Error())
+	// check if a SSH key pair is available
+	if d.SSHKeyPair == nil {
+		// generate a new SSH key pair
+		d.SSHKeyPair, err = ssh.NewKeyPair()
+		if err != nil {
+			return fmt.Errorf("Error when generating a new SSH key pair: %s", err.Error())
+		}
 	}
 
 	// submit new deployment
