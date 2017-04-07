@@ -10,6 +10,11 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It can be used 
 
 You need a Grid5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
+## VPN
+**You need to be connected to the Grid5000 VPN to create and access your Docker node.**  
+**Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.**  
+**Please follow the instructions from the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).**
+
 ## Installation from GitHub releases
 Binary releases for Linux, MacOS and Windows using x86/x86_64 CPU architectures are available in the [releases page](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases).
 You can use the following commands to install or upgrade the driver:
@@ -37,11 +42,6 @@ export PATH=$PATH:$GOPATH/bin
 ```
 
 ## How to use
-
-### VPN
-You need to be connected to the Grid5000 VPN to create and access your Docker node.  
-Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.  
-Please follow the instructions from the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).
 
 ### Driver-specific options
 The driver needs a few options to create a machine. Here is a list of the supported options:
