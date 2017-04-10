@@ -26,6 +26,7 @@ type Driver struct {
 	G5kImage              string
 	G5kResourceProperties string
 	G5kHostToProvision    string
+	G5kSkipVpnChecks      bool
 	SSHKeyPair            *ssh.KeyPair
 }
 
@@ -101,6 +102,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Host to provision (host need to be already deployed, because deployment step will be skipped)",
 			Value:  "",
 		},
+
+		mcnflag.BoolFlag{
+			EnvVar: "G5K_SKIP_VPN_CHECKS",
+			Name:   "g5k-skip-vpn-checks",
+			Usage:  "Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)",
+		},
 	}
 }
 
@@ -114,6 +121,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kResourceProperties = opts.String("g5k-resource-properties")
 	d.G5kJobID = opts.Int("g5k-use-job-reservation")
 	d.G5kHostToProvision = opts.String("g5k-host-to-provision")
+	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -131,6 +139,11 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	// site is required
 	if d.G5kSite == "" {
 		return fmt.Errorf("You must give the site you want to reserve the resources on")
+	}
+
+	// warn if user disable VPN check
+	if d.G5kSkipVpnChecks {
+		log.Warn("VPN client connection and DNS configuration checks are disabled")
 	}
 
 	return nil
@@ -206,6 +219,11 @@ func (d *Driver) GetState() (state.State, error) {
 
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() (err error) {
+	// check VPN connection if enabled
+	if err := d.checkVpnConnection(); !d.G5kSkipVpnChecks && (err != nil) {
+		return err
+	}
+
 	// create API client
 	d.G5kAPI = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite)
 
