@@ -49,7 +49,7 @@ export PATH=$PATH:$GOPATH/bin
 * **`--g5k-username` : Your Grid5000 account username (required)**
 * **`--g5k-password` : Your Grid5000 account password (required)**
 * **`--g5k-site` : Site where the reservation of the node will be made (required)**
-* `--g5k-walltime` : Timelife of the machine (format: "hh:mm:ss")
+* `--g5k-walltime` : Duration of the node reservation (format: "hh:mm:ss")
 * `--g5k-image` : Name of the system image to deploy on the node (Operating system)
 * `--g5k-resource-properties` : Resource selection with OAR properties (SQL format)
 * `--g5k-use-job-reservation` : Job ID to use (need to be an already existing job ID)
