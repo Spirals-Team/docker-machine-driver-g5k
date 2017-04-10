@@ -43,19 +43,29 @@ export PATH=$PATH:$GOPATH/bin
 
 ## How to use
 
-### Driver-specific options
-The driver needs a few options to create a machine. Here is a list of the supported options:
+### Driver-specific command line flags
 
-|            Option            |                       Description                       |     Default value     |  Required  |
-|------------------------------|---------------------------------------------------------|-----------------------|------------|
-| `--g5k-username`             | Your Grid5000 account username                          |                       | Yes        |
-| `--g5k-password`             | Your Grid5000 account password                          |                       | Yes        |
-| `--g5k-site`                 | Site to reserve the resources on                        |                       | Yes        |
-| `--g5k-walltime`             | Timelife of the machine                                 | "1:00:00"             | No         |
-| `--g5k-image`                | Name of the image to deploy                             | "jessie-x64-min"      | No         |
-| `--g5k-resource-properties`  | Resource selection with OAR properties (SQL format)     |                       | No         |
-| `--g5k-use-job-reservation`  | Job ID to use (need to be an already existing job ID)   |                       | No         |
-| `--g5k-host-to-provision`    | Host to provision (host need to be already deployed)    |                       | No         |
+#### Flags description
+* **`--g5k-username` : Your Grid5000 account username (required)**
+* **`--g5k-password` : Your Grid5000 account password (required)**
+* **`--g5k-site` : Site where the reservation of the node will be made (required)**
+* `--g5k-walltime` : Timelife of the machine (format: "hh:mm:ss")
+* `--g5k-image` : Name of the system image to deploy on the node (Operating system)
+* `--g5k-resource-properties` : Resource selection with OAR properties (SQL format)
+* `--g5k-use-job-reservation` : Job ID to use (need to be an already existing job ID)
+* `--g5k-host-to-provision` : Host to provision (host need to be already deployed)
+
+#### Flags usage
+|             Option             |          Environment         |     Default value     |
+|--------------------------------|------------------------------|-----------------------|
+| `--g5k-username`               | `G5K_USERNAME`               |                       |
+| `--g5k-password`               | `G5K_PASSWORD`               |                       |
+| `--g5k-site`                   | `G5K_SITE`                   |                       |
+| `--g5k-walltime`               | `G5K_WALLTIME`               | "1:00:00"             |
+| `--g5k-image`                  | `G5K_IMAGE`                  | "jessie-x64-min"      |
+| `--g5k-resource-properties`    | `G5K_RESOURCE_PROPERTIES`    |                       |
+| `--g5k-use-job-reservation`    | `G5K_USE_JOB_RESERVATION`    |                       |
+| `--g5k-host-to-provision`      | `G5K_HOST_TO_PROVISION`      |                       |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
