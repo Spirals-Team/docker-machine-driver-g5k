@@ -54,6 +54,7 @@ export PATH=$PATH:$GOPATH/bin
 * `--g5k-resource-properties` : Resource selection with OAR properties (SQL format)
 * `--g5k-use-job-reservation` : Job ID to use (need to be an already existing job ID)
 * `--g5k-host-to-provision` : Host to provision (host need to be already deployed)
+* `--g5k-skip-vpn-checks` : Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)
 
 #### Flags usage
 |             Option             |          Environment         |     Default value     |
@@ -66,6 +67,7 @@ export PATH=$PATH:$GOPATH/bin
 | `--g5k-resource-properties`    | `G5K_RESOURCE_PROPERTIES`    |                       |
 | `--g5k-use-job-reservation`    | `G5K_USE_JOB_RESERVATION`    |                       |
 | `--g5k-host-to-provision`      | `G5K_HOST_TO_PROVISION`      |                       |
+| `--g5k-skip-vpn-checks`        | `G5K_SKIP_VPN_CHECKS`        | False                 |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -74,7 +76,7 @@ If you give incorrect properties or no resource matches your request, you will g
 Error with pre-create check: "[G5K_api] request failed: 400 Bad Request."
 ```
 
-More informations about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
+More information about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
 
 ### Provisioning examples
 An example of node provisioning:
