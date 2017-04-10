@@ -10,6 +10,11 @@ A Docker Machine driver for the Grid5000 testbed infrastructure. It can be used 
 
 You need a Grid5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
 
+## VPN
+**You need to be connected to the Grid5000 VPN to create and access your Docker node.**  
+**Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.**  
+**Please follow the instructions from the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).**
+
 ## Installation from GitHub releases
 Binary releases for Linux, MacOS and Windows using x86/x86_64 CPU architectures are available in the [releases page](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases).
 You can use the following commands to install or upgrade the driver:
@@ -38,24 +43,31 @@ export PATH=$PATH:$GOPATH/bin
 
 ## How to use
 
-### VPN
-You need to be connected to the Grid5000 VPN to create and access your Docker node.  
-Do not forget to configure your DNS or use OpenVPN DNS auto-configuration.  
-Please follow the instructions from the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/VPN).
+### Driver-specific command line flags
 
-### Driver-specific options
-The driver needs a few options to create a machine. Here is a list of the supported options:
+#### Flags description
+* **`--g5k-username` : Your Grid5000 account username (required)**
+* **`--g5k-password` : Your Grid5000 account password (required)**
+* **`--g5k-site` : Site where the reservation of the node will be made (required)**
+* `--g5k-walltime` : Duration of the node reservation (format: "hh:mm:ss")
+* `--g5k-image` : Name of the system image to deploy on the node (Operating system)
+* `--g5k-resource-properties` : Resource selection with OAR properties (SQL format)
+* `--g5k-use-job-reservation` : Job ID to use (need to be an already existing job ID)
+* `--g5k-host-to-provision` : Host to provision (host need to be already deployed)
+* `--g5k-skip-vpn-checks` : Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)
 
-|            Option            |                       Description                       |     Default value     |  Required  |
-|------------------------------|---------------------------------------------------------|-----------------------|------------|
-| `--g5k-username`             | Your Grid5000 account username                          |                       | Yes        |
-| `--g5k-password`             | Your Grid5000 account password                          |                       | Yes        |
-| `--g5k-site`                 | Site to reserve the resources on                        |                       | Yes        |
-| `--g5k-walltime`             | Timelife of the machine                                 | "1:00:00"             | No         |
-| `--g5k-image`                | Name of the image to deploy                             | "jessie-x64-min"      | No         |
-| `--g5k-resource-properties`  | Resource selection with OAR properties (SQL format)     |                       | No         |
-| `--g5k-use-job-reservation`  | Job ID to use (need to be an already existing job ID)   |                       | No         |
-| `--g5k-host-to-provision`    | Host to provision (host need to be already deployed)    |                       | No         |
+#### Flags usage
+|             Option             |          Environment         |     Default value     |
+|--------------------------------|------------------------------|-----------------------|
+| `--g5k-username`               | `G5K_USERNAME`               |                       |
+| `--g5k-password`               | `G5K_PASSWORD`               |                       |
+| `--g5k-site`                   | `G5K_SITE`                   |                       |
+| `--g5k-walltime`               | `G5K_WALLTIME`               | "1:00:00"             |
+| `--g5k-image`                  | `G5K_IMAGE`                  | "jessie-x64-min"      |
+| `--g5k-resource-properties`    | `G5K_RESOURCE_PROPERTIES`    |                       |
+| `--g5k-use-job-reservation`    | `G5K_USE_JOB_RESERVATION`    |                       |
+| `--g5k-host-to-provision`      | `G5K_HOST_TO_PROVISION`      |                       |
+| `--g5k-skip-vpn-checks`        | `G5K_SKIP_VPN_CHECKS`        | False                 |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -64,7 +76,7 @@ If you give incorrect properties or no resource matches your request, you will g
 Error with pre-create check: "[G5K_api] request failed: 400 Bad Request."
 ```
 
-More informations about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
+More information about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
 
 ### Provisioning examples
 An example of node provisioning:
