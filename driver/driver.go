@@ -17,7 +17,7 @@ import (
 type Driver struct {
 	*drivers.BaseDriver
 
-	G5kAPI                *api.Api
+	G5kAPI                *api.Client
 	G5kJobID              int
 	G5kUsername           string
 	G5kPassword           string
@@ -220,12 +220,12 @@ func (d *Driver) GetState() (state.State, error) {
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() (err error) {
 	// check VPN connection if enabled
-	if err := d.checkVpnConnection(); !d.G5kSkipVpnChecks && (err != nil) {
+	if err := d.CheckVpnConnection(d.G5kSite); !d.G5kSkipVpnChecks && (err != nil) {
 		return err
 	}
 
 	// create API client
-	d.G5kAPI = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite)
+	d.G5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
 
 	// submit new job reservation
 	if err := d.submitNewJobReservation(); err != nil {

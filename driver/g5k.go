@@ -10,10 +10,10 @@ import (
 	"github.com/docker/machine/libmachine/log"
 )
 
-// checkVpnConnection check if the VPN is connected and properly configured (DNS) by trying to connect to the site frontend SSH server using its hostname
-func (d *Driver) checkVpnConnection() error {
+// CheckVpnConnection check if the VPN is connected and properly configured (DNS) by trying to connect to the site frontend SSH server using its hostname
+func (d *Driver) CheckVpnConnection(site string) error {
 	// construct site frontend hostname
-	frontend := fmt.Sprintf("frontend.%s.grid5000.fr:22", d.G5kSite)
+	frontend := fmt.Sprintf("frontend.%s.grid5000.fr:22", site)
 
 	// try to connect to the frontend SSH server
 	sshConfig := &ssh.ClientConfig{}
