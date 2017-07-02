@@ -17,7 +17,7 @@ import (
 type Driver struct {
 	*drivers.BaseDriver
 
-	G5kAPI                *api.Api
+	G5kAPI                *api.Client
 	G5kJobID              int
 	G5kUsername           string
 	G5kPassword           string
@@ -225,7 +225,7 @@ func (d *Driver) PreCreateCheck() (err error) {
 	}
 
 	// create API client
-	d.G5kAPI = api.NewApi(d.G5kUsername, d.G5kPassword, d.G5kSite)
+	d.G5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
 
 	// submit new job reservation
 	if err := d.submitNewJobReservation(); err != nil {
