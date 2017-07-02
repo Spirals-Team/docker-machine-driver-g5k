@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -21,33 +20,30 @@ type Deployment struct {
 	Site   string   `json:"site_uid"`
 	Status string   `json:"status"`
 	UID    string   `json:"uid"`
-	Links  []Link   `json:"links"`
 }
 
 // SubmitDeployment submits a new deployment request to g5k api
-func (a *Api) SubmitDeployment(deploymentReq DeploymentRequest) (string, error) {
+func (c *Client) SubmitDeployment(deploymentReq DeploymentRequest) (string, error) {
 	// create url for API call
-	urlDeploy := fmt.Sprintf("%s/sites/%s/deployments", G5kApiFrontend, a.Site)
-
-	// create deployment request json
-	deploymentArguments, err := json.Marshal(deploymentReq)
-	if err != nil {
-		return "", err
-	}
+	url := fmt.Sprintf("%s/sites/%s/deployments", G5kAPIFrontend, c.Site)
 
 	log.Infof("Submitting a new deployment... (image: '%s')", deploymentReq.Environment)
 
 	// send deployment request
-	resp, err := a.post(urlDeploy, string(deploymentArguments))
+	deploymentRes, err := c.Request().
+		SetHeader("Content-Type", "application/json").
+		SetBody(deploymentReq).
+		SetResult(&Deployment{}).
+		Post(url)
+
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Error while sending the deployment request: '%s'", err)
 	}
 
-	// unmarshal deployment response
-	var deployment Deployment
-	err = json.Unmarshal(resp, &deployment)
-	if err != nil {
-		return "", err
+	// unmarshal result
+	deployment, ok := deploymentRes.Result().(*Deployment)
+	if !ok {
+		return "", fmt.Errorf("Error in the response of the Deployment request (unexpected type)")
 	}
 
 	log.Infof("Deployment submitted successfully (id: '%s')", deployment.UID)
@@ -55,32 +51,33 @@ func (a *Api) SubmitDeployment(deploymentReq DeploymentRequest) (string, error) 
 }
 
 // GetDeployment get the deployment from its id
-func (a *Api) GetDeployment(deploymentID string) (*Deployment, error) {
+func (c *Client) GetDeployment(deploymentID string) (*Deployment, error) {
 	// create url for API call
-	url := fmt.Sprintf("%s/sites/%s/deployments/%s", G5kApiFrontend, a.Site, deploymentID)
+	url := fmt.Sprintf("%s/sites/%s/deployments/%s", G5kAPIFrontend, c.Site, deploymentID)
 
 	// send request
-	resp, err := a.get(url)
+	deploymentRes, err := c.Request().
+		SetResult(&Deployment{}).
+		Get(url)
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while retrieving Deployment informations: '%s'", err)
 	}
 
-	// unmarshal json response
-	var deployment Deployment
-	err = json.Unmarshal(resp, &deployment)
-	if err != nil {
-		return nil, err
+	deployment, ok := deploymentRes.Result().(*Deployment)
+	if !ok {
+		return nil, fmt.Errorf("Error in the Deployment retrieving (unexpected type)")
 	}
 
-	return &deployment, nil
+	return deployment, nil
 }
 
 // WaitUntilDeploymentIsFinished will wait until the deployment reach the 'terminated' state (no timeout)
-func (a *Api) WaitUntilDeploymentIsFinished(deploymentID string) error {
+func (c *Client) WaitUntilDeploymentIsFinished(deploymentID string) error {
 	log.Info("Waiting for deployment to finish, it will take a few minutes...")
 
 	// refresh deployment status
-	for deployment, err := a.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = a.GetDeployment(deploymentID) {
+	for deployment, err := c.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = c.GetDeployment(deploymentID) {
 		// check if GetDeployment returned an error
 		if err != nil {
 			return err
