@@ -220,7 +220,7 @@ func (d *Driver) GetState() (state.State, error) {
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() (err error) {
 	// check VPN connection if enabled
-	if err := d.checkVpnConnection(); !d.G5kSkipVpnChecks && (err != nil) {
+	if err := d.CheckVpnConnection(d.G5kSite); !d.G5kSkipVpnChecks && (err != nil) {
 		return err
 	}
 
