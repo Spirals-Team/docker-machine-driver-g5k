@@ -11,7 +11,7 @@ import (
 )
 
 // CheckVpnConnection check if the VPN is connected and properly configured (DNS) by trying to connect to the site frontend SSH server using its hostname
-func (d *Driver) CheckVpnConnection(site string) error {
+func CheckVpnConnection(site string) error {
 	// construct site frontend hostname
 	frontend := fmt.Sprintf("frontend.%s.grid5000.fr:22", site)
 
@@ -21,7 +21,7 @@ func (d *Driver) CheckVpnConnection(site string) error {
 
 	// we need to check if the error is network-related because the SSH Dial will always return an error due to the Authentication being not configured
 	if _, ok := err.(*net.OpError); ok {
-		return fmt.Errorf("Connection to frontend of '%s' site failed. Please check if the site is not undergoing maintenance and your VPN client is connected and properly configured (see driver documentation for more information)", d.G5kSite)
+		return fmt.Errorf("Connection to frontend of '%s' site failed. Please check if the site is not undergoing maintenance and your VPN client is connected and properly configured (see driver documentation for more information)", site)
 	}
 
 	return nil
