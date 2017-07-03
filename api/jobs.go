@@ -43,6 +43,11 @@ func (c *Client) SubmitJob(jobReq JobRequest) (int, error) {
 		return 0, fmt.Errorf("Error while sending Job submission: '%s'", err)
 	}
 
+	// check HTTP error code (expected: 201 Created)
+	if jobRes.StatusCode() != 201 {
+		return 0, fmt.Errorf("The server returned an error (code: %d) after sending Job submission: '%s'", jobRes.StatusCode(), jobRes.Status())
+	}
+
 	// unmarshal result
 	job, ok := jobRes.Result().(*Job)
 	if !ok {
@@ -65,6 +70,11 @@ func (c *Client) GetJob(jobID int) (*Job, error) {
 
 	if err != nil {
 		return nil, fmt.Errorf("Error while retrieving Job informations")
+	}
+
+	// check HTTP error code (expected: 200 OK)
+	if jobRes.StatusCode() != 200 {
+		return nil, fmt.Errorf("The server returned an error (code: %d) after requesting Job informations: '%s'", jobRes.StatusCode(), jobRes.Status())
 	}
 
 	// unmarshal result
@@ -93,8 +103,14 @@ func (c *Client) KillJob(jobID int) error {
 	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kAPIFrontend, c.Site, jobID)
 
 	// send delete request
-	if _, err := c.Request().Delete(url); err != nil {
+	delRes, err := c.Request().Delete(url)
+	if err != nil {
 		return fmt.Errorf("Error while killing job: '%s'", err)
+	}
+
+	// check HTTP error code (expected: 202 Accepted)
+	if delRes.StatusCode() != 202 {
+		return fmt.Errorf("The server returned an error (code: %d) after job killing request: '%s'", delRes.StatusCode(), delRes.Status())
 	}
 
 	return nil
