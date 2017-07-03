@@ -40,6 +40,11 @@ func (c *Client) SubmitDeployment(deploymentReq DeploymentRequest) (string, erro
 		return "", fmt.Errorf("Error while sending the deployment request: '%s'", err)
 	}
 
+	// check HTTP error code (expected: 201 Created)
+	if deploymentRes.StatusCode() != 201 {
+		return "", fmt.Errorf("The server returned an error (code: %d) after sending Deployment request: '%s'", deploymentRes.StatusCode(), deploymentRes.Status())
+	}
+
 	// unmarshal result
 	deployment, ok := deploymentRes.Result().(*Deployment)
 	if !ok {
@@ -64,6 +69,12 @@ func (c *Client) GetDeployment(deploymentID string) (*Deployment, error) {
 		return nil, fmt.Errorf("Error while retrieving Deployment informations: '%s'", err)
 	}
 
+	// check HTTP error code (expected: 200 OK)
+	if deploymentRes.StatusCode() != 200 {
+		return nil, fmt.Errorf("The server returned an error (code: %d) after requesting Deployment informations: '%s'", deploymentRes.StatusCode(), deploymentRes.Status())
+	}
+
+	// unmarshal result
 	deployment, ok := deploymentRes.Result().(*Deployment)
 	if !ok {
 		return nil, fmt.Errorf("Error in the Deployment retrieving (unexpected type)")
