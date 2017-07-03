@@ -54,6 +54,12 @@ func (d *Driver) submitNewJobReservation() error {
 	return nil
 }
 
+func (d *Driver) handleDeploymentError() {
+	// if deployment fail, we can't recover from this error, so we kill the job
+	log.Infof("Unrecoverable error in deployment, killing job ID '%d'...", d.G5kJobID)
+	d.G5kAPI.KillJob(d.G5kJobID)
+}
+
 func (d *Driver) submitNewDeployment() error {
 	// if a host to provision is set, skip host deployment
 	if d.G5kHostToProvision != "" {
@@ -74,14 +80,13 @@ func (d *Driver) submitNewDeployment() error {
 		Key:         string(d.SSHKeyPair.PublicKey),
 	})
 	if err != nil {
+		d.handleDeploymentError()
 		return fmt.Errorf("Error when submitting new deployment: %s", err.Error())
 	}
 
 	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
 	if err = d.G5kAPI.WaitUntilDeploymentIsFinished(deploymentID); err != nil {
-		// if deployment fail, we can't recover from this error, so we kill the job
-		log.Infof("Killing job ID '%d'...", d.G5kJobID)
-		d.G5kAPI.KillJob(d.G5kJobID)
+		d.handleDeploymentError()
 		return fmt.Errorf("Error when waiting for deployment to finish: %s", err.Error())
 	}
 
