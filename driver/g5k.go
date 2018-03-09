@@ -34,12 +34,25 @@ func (d *Driver) submitNewJobReservation() error {
 		return nil
 	}
 
+	// by default, the node will be redeployed with another image, no specific actions are needed
+	jobCommand := "sleep 365d"
+	jobTypes := []string{"deploy"}
+
+	// if the user want to reuse the reference environment, specific actions are needed
+	if d.G5kReuseRefEnvironment {
+		log.Infof("Skipping the node deployment and reusing")
+		// remove the 'deploy' job type because we will not deploy the machine
+		jobTypes = []string{}
+		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
+		jobCommand = `sudo-g5k && sudo /bin/sh -c 'echo "` + string(d.SSHKeyPair.PublicKey) + `" >>/root/.ssh/authorized_keys' && sleep 365d`
+	}
+
 	// submit new Job request
 	jobID, err := d.G5kAPI.SubmitJob(api.JobRequest{
 		Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
-		Command:    "sleep 365d",
+		Command:    jobCommand,
 		Properties: d.G5kResourceProperties,
-		Types:      []string{"deploy"},
+		Types:      jobTypes,
 	})
 	if err != nil {
 		return fmt.Errorf("Error when submitting new job: %s", err.Error())
@@ -64,6 +77,12 @@ func (d *Driver) submitNewDeployment() error {
 	// if a host to provision is set, skip host deployment
 	if d.G5kHostToProvision != "" {
 		log.Infof("Skipping host deployment and provisionning host '%s' only", d.G5kHostToProvision)
+		return nil
+	}
+
+	// if the use want to reuse Grid'5000 reference environment
+	if d.G5kReuseRefEnvironment {
+		log.Infof("Skipping host deployment and reusing Grid'5000 standard environment")
 		return nil
 	}
 
