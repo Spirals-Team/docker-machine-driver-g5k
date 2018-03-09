@@ -55,6 +55,7 @@ export PATH=$PATH:$GOPATH/bin
 * `--g5k-use-job-reservation` : Job ID to use (need to be an already existing job ID)
 * `--g5k-host-to-provision` : Host to provision (host need to be already deployed)
 * `--g5k-skip-vpn-checks` : Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)
+* `--g5k-reuse-ref-environment` : Reuse the Grid'5000 reference environment instead of re-deploying the node (it saves a lot of time)
 
 #### Flags usage
 |             Option             |          Environment         |     Default value     |
@@ -63,11 +64,12 @@ export PATH=$PATH:$GOPATH/bin
 | `--g5k-password`               | `G5K_PASSWORD`               |                       |
 | `--g5k-site`                   | `G5K_SITE`                   |                       |
 | `--g5k-walltime`               | `G5K_WALLTIME`               | "1:00:00"             |
-| `--g5k-image`                  | `G5K_IMAGE`                  | "jessie-x64-min"      |
+| `--g5k-image`                  | `G5K_IMAGE`                  | "debian9-x64-std"     |
 | `--g5k-resource-properties`    | `G5K_RESOURCE_PROPERTIES`    |                       |
 | `--g5k-use-job-reservation`    | `G5K_USE_JOB_RESERVATION`    |                       |
 | `--g5k-host-to-provision`      | `G5K_HOST_TO_PROVISION`      |                       |
 | `--g5k-skip-vpn-checks`        | `G5K_SKIP_VPN_CHECKS`        | False                 |
+| `--g5k-reuse-ref-environment`  | `G5K_REUSE_REF_ENVIRONMENT`  | False                 |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -78,13 +80,24 @@ Error with pre-create check: "[G5K_api] request failed: 400 Bad Request."
 
 More information about usage of OAR properties are available on the [Grid5000 Wiki](https://www.grid5000.fr/mediawiki/index.php/Advanced_OAR#Other_examples_using_properties).
 
-### Provisioning examples
-An example of node provisioning:
+### Usage examples
+An example of node provisioning reusing the Grid'5000 standard environment:
 ```bash
 docker-machine create -d g5k \
 --g5k-username "user" \
 --g5k-password "********" \
 --g5k-site "lille" \
+--g5k-reuse-ref-environment \
+test-node
+```
+
+An example of node provisioning deploying the `debian9-x64-min` environment on the node:
+```bash
+docker-machine create -d g5k \
+--g5k-username "user" \
+--g5k-password "********" \
+--g5k-site "lille" \
+--g5k-image "debian9-x64-min" \
 test-node
 ```
 
