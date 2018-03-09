@@ -40,7 +40,6 @@ func (d *Driver) submitNewJobReservation() error {
 
 	// if the user want to reuse the reference environment, specific actions are needed
 	if d.G5kReuseRefEnvironment {
-		log.Infof("Skipping the node deployment and reusing")
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
