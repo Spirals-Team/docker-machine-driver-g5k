@@ -83,9 +83,10 @@ More information about usage of OAR properties are available on the [Grid5000 Wi
 
 #### Grid'5000 reference environment reuse
 You can reuse the Grid'5000 reference environment (debian 9, stretch) instead of redeploying the machine.  
-If you don't need a tweaked environment, doing this will skip the deployment phase and saves you a lot of time at the machine creation.
+Doing so will skip the node deployment phase and will save a lot of time at the machine creation.  
+If you don't need a tweaked environment or rely on some Grid'5000 services (nfs for example), you should use this option.
 
-Please be aware that by default docker-machine use the `aufs` storage driver for Docker Engine on a Debian 9 (stretch) environment.  
+Be aware that by default docker-machine use the `aufs` storage driver for Docker Engine on a Debian 9 environment.  
 This is incompatible with the Grid'5000 reference environment and the `overlay2` storage driver should be used instead.  
 You will find an appropriate usage example in the following section.
 
