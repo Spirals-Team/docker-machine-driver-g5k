@@ -54,9 +54,10 @@ export PATH=$PATH:$GOPATH/bin
 * `--g5k-resource-properties` : Resource selection with OAR properties (SQL format)
 * `--g5k-use-job-reservation` : Job ID to use (need to be an already existing job ID)
 * `--g5k-host-to-provision` : Host to provision (host need to be already deployed)
-* `--g5k-skip-vpn-checks` : Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)
-* `--g5k-reuse-ref-environment` : Reuse the Grid'5000 reference environment instead of re-deploying the node (it saves a lot of time)
- 
+* `--g5k-skip-vpn-checks` : Skip the VPN client connection and DNS configuration checks **(don't use this flag)**
+* `--g5k-reuse-ref-environment` : Reuse the Grid'5000 reference environment instead of re-deploying the node
+* `--g5k-job-queue` : Specify the job queue (default or production only, besteffort is NOT supported)
+
 #### Flags usage
 |             Option             |          Environment         |     Default value     |
 |--------------------------------|------------------------------|-----------------------|
@@ -70,6 +71,7 @@ export PATH=$PATH:$GOPATH/bin
 | `--g5k-host-to-provision`      | `G5K_HOST_TO_PROVISION`      |                       |
 | `--g5k-skip-vpn-checks`        | `G5K_SKIP_VPN_CHECKS`        | False                 |
 | `--g5k-reuse-ref-environment`  | `G5K_REUSE_REF_ENVIRONMENT`  | False                 |
+| `--g5k-job-queue`              | `G5K_JOB_QUEUE`              | "default"             |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -89,6 +91,17 @@ If you don't need a tweaked environment or rely on some Grid'5000 services (nfs 
 Be aware that by default docker-machine use the `aufs` storage driver for Docker Engine on a Debian 9 environment.  
 This is incompatible with the Grid'5000 reference environment and the `overlay2` storage driver should be used instead.  
 You will find an appropriate usage example in the following section.
+
+#### Job queues
+You can specify the job queue of your reservation and access the resources of the production queue.  
+The driver only support `default` and `production` queues. The `besteffort` queue is **NOT** supported.  
+If you use an incorrect queue for your site you will get the following error:
+```bash
+...
+Error with pre-create check: "Error when submitting new job: The server returned an error (code: 500) after sending Job submission: '500 Internal Server Error'"
+```
+
+See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:UsagePolicy#Rules_for_the_production_queue) for more information about the production queue.
 
 ### Usage examples
 An example of node provisioning reusing the Grid'5000 standard environment:
