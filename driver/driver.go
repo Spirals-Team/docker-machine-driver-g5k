@@ -13,21 +13,25 @@ import (
 	"github.com/docker/machine/libmachine/state"
 )
 
+// g5kReferenceEnvironment is the name of the reference environment automatically deployed on the node by Grid'5000
+const g5kReferenceEnvironmentName string = "debian9-x64-std"
+
 // Driver parameters
 type Driver struct {
 	*drivers.BaseDriver
 
-	G5kAPI                *api.Client
-	G5kJobID              int
-	G5kUsername           string
-	G5kPassword           string
-	G5kSite               string
-	G5kWalltime           string
-	G5kImage              string
-	G5kResourceProperties string
-	G5kHostToProvision    string
-	G5kSkipVpnChecks      bool
-	SSHKeyPair            *ssh.KeyPair
+	G5kAPI                 *api.Client
+	G5kJobID               int
+	G5kUsername            string
+	G5kPassword            string
+	G5kSite                string
+	G5kWalltime            string
+	G5kImage               string
+	G5kResourceProperties  string
+	G5kHostToProvision     string
+	G5kSkipVpnChecks       bool
+	G5kReuseRefEnvironment bool
+	SSHKeyPair             *ssh.KeyPair
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -79,8 +83,8 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "G5K_IMAGE",
 			Name:   "g5k-image",
-			Usage:  "Name of the image to deploy",
-			Value:  "jessie-x64-min",
+			Usage:  "Name of the image (environment) to deploy on the node",
+			Value:  g5kReferenceEnvironmentName,
 		},
 
 		mcnflag.StringFlag{
@@ -108,6 +112,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "g5k-skip-vpn-checks",
 			Usage:  "Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)",
 		},
+
+		mcnflag.BoolFlag{
+			EnvVar: "G5K_REUSE_REF_ENVIRONMENT",
+			Name:   "g5k-reuse-ref-environment",
+			Usage:  "Reuse the Grid'5000 reference environment instead of re-deploying the node (it saves a lot of time)",
+		},
 	}
 }
 
@@ -122,6 +132,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kJobID = opts.Int("g5k-use-job-reservation")
 	d.G5kHostToProvision = opts.String("g5k-host-to-provision")
 	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
+	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -139,6 +150,10 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	// site is required
 	if d.G5kSite == "" {
 		return fmt.Errorf("You must give the site you want to reserve the resources on")
+	}
+
+	if d.G5kReuseRefEnvironment && d.G5kImage != g5kReferenceEnvironmentName {
+		return fmt.Errorf("You have to choose between reusing the reference environment or redeploying the node with another image")
 	}
 
 	// warn if user disable VPN check
@@ -229,11 +244,6 @@ func (d *Driver) PreCreateCheck() (err error) {
 	// create API client
 	d.G5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
 
-	// submit new job reservation
-	if err := d.submitNewJobReservation(); err != nil {
-		return err
-	}
-
 	// check if a SSH key pair is available
 	if d.SSHKeyPair == nil {
 		// generate a new SSH key pair
@@ -243,12 +253,13 @@ func (d *Driver) PreCreateCheck() (err error) {
 		}
 	}
 
-	// submit new deployment
-	if err := d.submitNewDeployment(); err != nil {
+	// submit new job reservation
+	if err := d.submitNewJobReservation(); err != nil {
 		return err
 	}
 
-	return nil
+	// submit new deployment
+	return d.submitNewDeployment()
 }
 
 // Create copy ssh key in docker-machine dir and set the node IP
