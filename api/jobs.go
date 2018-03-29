@@ -13,6 +13,7 @@ type JobRequest struct {
 	Command    string   `json:"command"`
 	Properties string   `json:"properties,omitempty"`
 	Types      []string `json:"types"`
+	Queue      string   `json:"queue"`
 }
 
 // Job represents an existing job
