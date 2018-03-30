@@ -52,6 +52,7 @@ func (d *Driver) submitNewJobReservation() error {
 		Command:    jobCommand,
 		Properties: d.G5kResourceProperties,
 		Types:      jobTypes,
+		Queue:      d.G5kJobQueue,
 	})
 	if err != nil {
 		return fmt.Errorf("Error when submitting new job: %s", err.Error())

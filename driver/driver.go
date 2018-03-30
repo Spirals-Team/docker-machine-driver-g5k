@@ -31,6 +31,7 @@ type Driver struct {
 	G5kHostToProvision     string
 	G5kSkipVpnChecks       bool
 	G5kReuseRefEnvironment bool
+	G5kJobQueue            string
 	SSHKeyPair             *ssh.KeyPair
 }
 
@@ -118,6 +119,13 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "g5k-reuse-ref-environment",
 			Usage:  "Reuse the Grid'5000 reference environment instead of re-deploying the node (it saves a lot of time)",
 		},
+
+		mcnflag.StringFlag{
+			EnvVar: "G5K_JOB_QUEUE",
+			Name:   "g5k-job-queue",
+			Usage:  "Specify the job queue (default or production only, besteffort is NOT supported)",
+			Value:  "default",
+		},
 	}
 }
 
@@ -133,6 +141,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kHostToProvision = opts.String("g5k-host-to-provision")
 	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
+	d.G5kJobQueue = opts.String("g5k-job-queue")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -159,6 +168,11 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	// warn if user disable VPN check
 	if d.G5kSkipVpnChecks {
 		log.Warn("VPN client connection and DNS configuration checks are disabled")
+	}
+
+	// only the default and production job queues are supported
+	if d.G5kJobQueue != "default" && d.G5kJobQueue != "production" {
+		return fmt.Errorf("You must choose between the 'default' or 'production' job queues")
 	}
 
 	return nil
