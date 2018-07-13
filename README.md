@@ -94,7 +94,7 @@ You will find an appropriate usage example in the following section.
 
 #### Job queues
 You can specify the job queue of your reservation and access the resources of the production queue.  
-The driver only support `default` and `production` queues. The `besteffort` queue is **NOT** supported.  
+The driver only support `default`, `production` and `testing` queues. The `besteffort` queue is **NOT** supported.  
 If you use an incorrect queue for your site you will get the following error:
 ```bash
 ...

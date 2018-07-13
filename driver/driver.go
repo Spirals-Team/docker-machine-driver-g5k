@@ -170,9 +170,9 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		log.Warn("VPN client connection and DNS configuration checks are disabled")
 	}
 
-	// only the default and production job queues are supported
-	if d.G5kJobQueue != "default" && d.G5kJobQueue != "production" {
-		return fmt.Errorf("You must choose between the 'default' or 'production' job queues")
+	// only the default, production and testing job queues are supported
+	if d.G5kJobQueue != "default" && d.G5kJobQueue != "production" && d.G5kJobQueue != "testing" {
+		return fmt.Errorf("You must choose between the 'default', 'production' and 'testing' job queues")
 	}
 
 	return nil
