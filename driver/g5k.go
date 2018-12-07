@@ -32,10 +32,12 @@ func (d *Driver) generateSSHAuthorizedKeys() string {
 	var authorizedKeys strings.Builder
 
 	// add ephemeral key
-	authorizedKeys.WriteString(string(d.EphemeralSSHKeyPair.PublicKey) + "\n")
+	authorizedKeys.WriteString("# docker-machine driver g5k - ephemeral key\n")
+	authorizedKeys.WriteString(string(d.EphemeralSSHKeyPair.PublicKey))
 
 	// add external key(s)
-	for _, externalPubKey := range d.ExternalSSHPublicKeys {
+	for index, externalPubKey := range d.ExternalSSHPublicKeys {
+		authorizedKeys.WriteString(fmt.Sprintf("# docker-machine driver g5k - additional key %d\n", index))
 		authorizedKeys.WriteString(externalPubKey + "\n")
 	}
 
