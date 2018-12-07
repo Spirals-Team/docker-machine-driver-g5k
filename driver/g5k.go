@@ -60,7 +60,7 @@ func (d *Driver) submitNewJobReservation() error {
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
-		jobCommand = `sudo-g5k && sudo /bin/sh -c 'echo "` + d.generateSSHAuthorizedKeys() + `" >>/root/.ssh/authorized_keys' && sleep 365d`
+		jobCommand = `sudo-g5k && sudo /bin/sh -c 'echo -e "` + d.generateSSHAuthorizedKeys() + `" >>/root/.ssh/authorized_keys' && sleep 365d`
 	}
 
 	// submit new Job request
