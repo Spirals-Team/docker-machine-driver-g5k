@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 
@@ -27,6 +28,22 @@ func CheckVpnConnection(site string) error {
 	return nil
 }
 
+func (d *Driver) generateSSHAuthorizedKeys() string {
+	var authorizedKeysEntries []string
+
+	// add ephemeral key
+	authorizedKeysEntries = append(authorizedKeysEntries, "# docker-machine driver g5k - ephemeral key")
+	authorizedKeysEntries = append(authorizedKeysEntries, strings.TrimSpace(string(d.EphemeralSSHKeyPair.PublicKey)))
+
+	// add external key(s)
+	for index, externalPubKey := range d.ExternalSSHPublicKeys {
+		authorizedKeysEntries = append(authorizedKeysEntries, fmt.Sprintf("# docker-machine driver g5k - additional key %d", index))
+		authorizedKeysEntries = append(authorizedKeysEntries, strings.TrimSpace(externalPubKey))
+	}
+
+	return strings.Join(authorizedKeysEntries, "\n") + "\n"
+}
+
 func (d *Driver) submitNewJobReservation() error {
 	// if a job ID is provided, skip job reservation
 	if d.G5kJobID != 0 {
@@ -43,7 +60,7 @@ func (d *Driver) submitNewJobReservation() error {
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
-		jobCommand = `sudo-g5k && sudo /bin/sh -c 'echo "` + string(d.SSHKeyPair.PublicKey) + `" >>/root/.ssh/authorized_keys' && sleep 365d`
+		jobCommand = `sudo-g5k && echo -n "` + d.generateSSHAuthorizedKeys() + `" |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`
 	}
 
 	// submit new Job request
@@ -96,7 +113,7 @@ func (d *Driver) submitNewDeployment() error {
 	deploymentID, err := d.G5kAPI.SubmitDeployment(api.DeploymentRequest{
 		Nodes:       job.Nodes,
 		Environment: d.G5kImage,
-		Key:         string(d.SSHKeyPair.PublicKey),
+		Key:         d.generateSSHAuthorizedKeys(),
 	})
 	if err != nil {
 		d.handleDeploymentError()

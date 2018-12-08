@@ -11,6 +11,7 @@ import (
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/ssh"
 	"github.com/docker/machine/libmachine/state"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 // g5kReferenceEnvironment is the name of the reference environment automatically deployed on the node by Grid'5000
@@ -32,7 +33,8 @@ type Driver struct {
 	G5kSkipVpnChecks       bool
 	G5kReuseRefEnvironment bool
 	G5kJobQueue            string
-	SSHKeyPair             *ssh.KeyPair
+	EphemeralSSHKeyPair    *ssh.KeyPair
+	ExternalSSHPublicKeys  []string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -98,7 +100,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			EnvVar: "G5K_USE_JOB_RESERVATION",
 			Name:   "g5k-use-job-reservation",
-			Usage:  "job ID to use (need to be an already existing job ID, because job reservation will be skipped)",
+			Usage:  "Job ID to use (need to be an already existing job ID, because job reservation will be skipped)",
 		},
 
 		mcnflag.StringFlag{
@@ -126,6 +128,13 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Specify the job queue (default or production only, besteffort is NOT supported)",
 			Value:  "default",
 		},
+
+		mcnflag.StringSliceFlag{
+			EnvVar: "G5K_EXTERNAL_SSH_PUBLIC_KEYS",
+			Name:   "g5k-external-ssh-public-keys",
+			Usage:  "Additional SSH public key(s) allowed to connect to the node (in authorized_keys format)",
+			Value:  []string{},
+		},
 	}
 }
 
@@ -142,6 +151,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
 	d.G5kJobQueue = opts.String("g5k-job-queue")
+	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -170,9 +180,9 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		log.Warn("VPN client connection and DNS configuration checks are disabled")
 	}
 
-	// only the default, production and testing job queues are supported
-	if d.G5kJobQueue != "default" && d.G5kJobQueue != "production" && d.G5kJobQueue != "testing" {
-		return fmt.Errorf("You must choose between the 'default', 'production' and 'testing' job queues")
+	// we cannot use the besteffort queue with docker-machine
+	if d.G5kJobQueue == "besteffort" {
+		return fmt.Errorf("The besteffort queue is not supported")
 	}
 
 	return nil
@@ -258,10 +268,18 @@ func (d *Driver) PreCreateCheck() (err error) {
 	// create API client
 	d.G5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
 
+	// check format of external SSH public keys
+	for _, externalSSHPubKey := range d.ExternalSSHPublicKeys {
+		_, _, _, _, err := gossh.ParseAuthorizedKey([]byte(externalSSHPubKey))
+		if err != nil {
+			return fmt.Errorf("The external SSH public key '%s' is invalid: %s", externalSSHPubKey, err.Error())
+		}
+	}
+
 	// check if a SSH key pair is available
-	if d.SSHKeyPair == nil {
+	if d.EphemeralSSHKeyPair == nil {
 		// generate a new SSH key pair
-		d.SSHKeyPair, err = ssh.NewKeyPair()
+		d.EphemeralSSHKeyPair, err = ssh.NewKeyPair()
 		if err != nil {
 			return fmt.Errorf("Error when generating a new SSH key pair: %s", err.Error())
 		}
@@ -291,8 +309,8 @@ func (d *Driver) Create() (err error) {
 		d.BaseDriver.IPAddress = job.Nodes[0]
 	}
 
-	// copy SSH key pair to machine directory
-	if err := d.SSHKeyPair.WriteToFile(d.GetSSHKeyPath(), d.GetSSHKeyPath()+".pub"); err != nil {
+	// copy ephemeral SSH key pair to machine directory
+	if err := d.EphemeralSSHKeyPair.WriteToFile(d.GetSSHKeyPath(), d.GetSSHKeyPath()+".pub"); err != nil {
 		return fmt.Errorf("Error when copying SSH key pair to machine directory: %s", err.Error())
 	}
 
