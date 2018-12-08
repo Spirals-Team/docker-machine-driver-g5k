@@ -57,7 +57,7 @@ export PATH=$PATH:$GOPATH/bin
 * `--g5k-skip-vpn-checks` : Skip the VPN client connection and DNS configuration checks **(don't use this flag)**
 * `--g5k-reuse-ref-environment` : Reuse the Grid'5000 reference environment instead of re-deploying the node
 * `--g5k-job-queue` : Specify the job queue (besteffort queue is NOT supported)
-* `--g5k-external-ssh-public-keys` : Additional SSH public key(s) allowed to connect to the node (in authorized_keys format)
+* `--g5k-external-ssh-public-keys` : SSH public key(s) allowed to connect to the node (in authorized_keys format)
 
 #### Flags usage
 |             Option               |          Environment           |     Default value     |
@@ -163,5 +163,5 @@ docker-machine create -d g5k \
 --g5k-password "********" \
 --g5k-site "lille" \
 --g5k-external-ssh-public-keys "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFLs3JzUYn7LbHE+SzJNoMvYbasnhjlen0k6dFs801DT test-ed25519" \
---g5k-external-ssh-public-keys "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5qQt/nzGW19uCb9CDVEvP93LZ2mu3rd7drPP1nLf1pzLwlL2U2ksfwDCjMWU0P7KA6tB4scI+4dhxj07t0Z8g4TsMGYhbG0kjf7tWN73DombB4h/zobo2GvVoMg0NBLTP4peXLYAEofTYc0g7OWtJicAzLwcMzHsitDjjBwCKHQ== test-rsa" \
+--g5k-external-ssh-public-keys "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5qQt/nzGW19uCb9CDVEvP93LZ2mu3rd7drPP1nLf1pzLwlL2U2ksfwDCjMWU0P7KA6tB4scI+4dhxj07t0Z8g4TsMGYhbG0kjf7tWN73DombB4h/zobo2GvVoMg0NBLTP4peXLYAEofTYc0g7OWtJicAzLwcMzHsitDjjBwCKHQ== test-rsa"
 ```
