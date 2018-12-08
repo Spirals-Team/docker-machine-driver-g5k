@@ -29,19 +29,19 @@ func CheckVpnConnection(site string) error {
 }
 
 func (d *Driver) generateSSHAuthorizedKeys() string {
-	var authorizedKeys strings.Builder
+	var authorizedKeysEntries []string
 
 	// add ephemeral key
-	authorizedKeys.WriteString("# docker-machine driver g5k - ephemeral key\n")
-	authorizedKeys.WriteString(string(d.EphemeralSSHKeyPair.PublicKey))
+	authorizedKeysEntries = append(authorizedKeysEntries, "# docker-machine driver g5k - ephemeral key")
+	authorizedKeysEntries = append(authorizedKeysEntries, string(d.EphemeralSSHKeyPair.PublicKey))
 
 	// add external key(s)
 	for index, externalPubKey := range d.ExternalSSHPublicKeys {
-		authorizedKeys.WriteString(fmt.Sprintf("# docker-machine driver g5k - additional key %d\n", index))
-		authorizedKeys.WriteString(externalPubKey + "\n")
+		authorizedKeysEntries = append(authorizedKeysEntries, fmt.Sprintf("# docker-machine driver g5k - additional key %d", index))
+		authorizedKeysEntries = append(authorizedKeysEntries, externalPubKey)
 	}
 
-	return authorizedKeys.String()
+	return strings.Join(authorizedKeysEntries, "\n")
 }
 
 func (d *Driver) submitNewJobReservation() error {
@@ -60,7 +60,7 @@ func (d *Driver) submitNewJobReservation() error {
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
-		jobCommand = `sudo-g5k && sudo /bin/sh -c 'echo -e "` + d.generateSSHAuthorizedKeys() + `" >>/root/.ssh/authorized_keys' && sleep 365d`
+		jobCommand = `sudo-g5k && echo -e "` + d.generateSSHAuthorizedKeys() + `" |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`
 	}
 
 	// submit new Job request
