@@ -329,20 +329,20 @@ func (d *Driver) Remove() error {
 
 // Kill don't do anything
 func (d *Driver) Kill() error {
-	return fmt.Errorf("You can't kill a machine on Grid'5000")
+	return fmt.Errorf("The 'kill' operation is not supported on Grid'5000")
 }
 
 // Start don't do anything
 func (d *Driver) Start() error {
-	return fmt.Errorf("You can't start a machine on Grid'5000")
+	return fmt.Errorf("The 'start' operation is not supported on Grid'5000")
 }
 
 // Stop don't do anything
 func (d *Driver) Stop() error {
-	return fmt.Errorf("You can't stop a machine on Grid'5000")
+	return fmt.Errorf("The 'stop' operation is not supported on Grid'5000")
 }
 
 // Restart don't do anything
 func (d *Driver) Restart() error {
-	return fmt.Errorf("You can't restart a machine on Grid'5000")
+	return fmt.Errorf("The 'restart' operation is not supported on Grid'5000")
 }
