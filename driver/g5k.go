@@ -33,15 +33,15 @@ func (d *Driver) generateSSHAuthorizedKeys() string {
 
 	// add ephemeral key
 	authorizedKeysEntries = append(authorizedKeysEntries, "# docker-machine driver g5k - ephemeral key")
-	authorizedKeysEntries = append(authorizedKeysEntries, string(d.EphemeralSSHKeyPair.PublicKey))
+	authorizedKeysEntries = append(authorizedKeysEntries, strings.TrimSpace(string(d.EphemeralSSHKeyPair.PublicKey)))
 
 	// add external key(s)
 	for index, externalPubKey := range d.ExternalSSHPublicKeys {
 		authorizedKeysEntries = append(authorizedKeysEntries, fmt.Sprintf("# docker-machine driver g5k - additional key %d", index))
-		authorizedKeysEntries = append(authorizedKeysEntries, externalPubKey)
+		authorizedKeysEntries = append(authorizedKeysEntries, strings.TrimSpace(externalPubKey))
 	}
 
-	return strings.Join(authorizedKeysEntries, "\n")
+	return strings.Join(authorizedKeysEntries, "\n") + "\n"
 }
 
 func (d *Driver) submitNewJobReservation() error {
@@ -60,7 +60,7 @@ func (d *Driver) submitNewJobReservation() error {
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
-		jobCommand = `sudo-g5k && echo -e "` + d.generateSSHAuthorizedKeys() + `" |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`
+		jobCommand = `sudo-g5k && echo -n "` + d.generateSSHAuthorizedKeys() + `" |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`
 	}
 
 	// submit new Job request
