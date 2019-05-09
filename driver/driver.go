@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/docker/machine/libmachine/mcnutils"
+
 	"github.com/Spirals-Team/docker-machine-driver-g5k/api"
 
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/log"
 	"github.com/docker/machine/libmachine/mcnflag"
-	"github.com/docker/machine/libmachine/ssh"
 	"github.com/docker/machine/libmachine/state"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -29,11 +30,11 @@ type Driver struct {
 	G5kWalltime            string
 	G5kImage               string
 	G5kResourceProperties  string
-	G5kHostToProvision     string
 	G5kSkipVpnChecks       bool
 	G5kReuseRefEnvironment bool
 	G5kJobQueue            string
-	EphemeralSSHKeyPair    *ssh.KeyPair
+	G5kJobStartTime        string
+	DriverSSHPublicKey     string
 	ExternalSSHPublicKeys  []string
 }
 
@@ -97,19 +98,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  "",
 		},
 
-		mcnflag.IntFlag{
-			EnvVar: "G5K_USE_JOB_RESERVATION",
-			Name:   "g5k-use-job-reservation",
-			Usage:  "Job ID to use (need to be an already existing job ID, because job reservation will be skipped)",
-		},
-
-		mcnflag.StringFlag{
-			EnvVar: "G5K_HOST_TO_PROVISION",
-			Name:   "g5k-host-to-provision",
-			Usage:  "Host to provision (host need to be already deployed, because deployment step will be skipped)",
-			Value:  "",
-		},
-
 		mcnflag.BoolFlag{
 			EnvVar: "G5K_SKIP_VPN_CHECKS",
 			Name:   "g5k-skip-vpn-checks",
@@ -129,6 +117,18 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  "default",
 		},
 
+		mcnflag.StringFlag{
+			EnvVar: "G5K_MAKE_JOB_RESERVATION",
+			Name:   "g5k-make-job-reservation",
+			Usage:  "Request a job start time/date reservation instead of a submission. The date format is 'YYYY-MM-DD HH:MM:SS' or a UNIX timestamp",
+		},
+
+		mcnflag.IntFlag{
+			EnvVar: "G5K_USE_JOB_RESERVATION",
+			Name:   "g5k-use-job-reservation",
+			Usage:  "Job reservation ID to use (need to be a job of 'deploy' type and in the 'running' state)",
+		},
+
 		mcnflag.StringSliceFlag{
 			EnvVar: "G5K_EXTERNAL_SSH_PUBLIC_KEYS",
 			Name:   "g5k-external-ssh-public-keys",
@@ -146,11 +146,11 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kWalltime = opts.String("g5k-walltime")
 	d.G5kImage = opts.String("g5k-image")
 	d.G5kResourceProperties = opts.String("g5k-resource-properties")
-	d.G5kJobID = opts.Int("g5k-use-job-reservation")
-	d.G5kHostToProvision = opts.String("g5k-host-to-provision")
 	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
 	d.G5kJobQueue = opts.String("g5k-job-queue")
+	d.G5kJobStartTime = opts.String("g5k-make-job-reservation")
+	d.G5kJobID = opts.Int("g5k-use-job-reservation")
 	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
 
 	// Docker Swarm
@@ -171,8 +171,14 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		return fmt.Errorf("You must give the site you want to reserve the resources on")
 	}
 
+	// contradictory use of parameters: providing an image to deploy while trying to reuse the reference environment
 	if d.G5kReuseRefEnvironment && d.G5kImage != g5kReferenceEnvironmentName {
 		return fmt.Errorf("You have to choose between reusing the reference environment or redeploying the node with another image")
+	}
+
+	// we cannot reuse the reference environment when the job is of type 'deploy'
+	if d.G5kReuseRefEnvironment && (d.G5kJobStartTime != "" || d.G5kJobID != 0) {
+		return fmt.Errorf("Reusing the Grid'5000 reference environment on a job reservation is not supported")
 	}
 
 	// warn if user disable VPN check
@@ -257,16 +263,26 @@ func (d *Driver) GetState() (state.State, error) {
 }
 
 // PreCreateCheck check parameters and submit the job to Grid5000
-func (d *Driver) PreCreateCheck() (err error) {
+func (d *Driver) PreCreateCheck() error {
+	// prepare the driver store dir
+	if err := d.prepareDriverStoreDirectory(); err != nil {
+		return err
+	}
+
 	// check VPN connection if enabled
 	if !d.G5kSkipVpnChecks {
-		if err := CheckVpnConnection(d.G5kSite); err != nil {
+		if err := d.checkVpnConnection(); err != nil {
 			return err
 		}
 	}
 
 	// create API client
 	d.G5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
+	// load driver SSH public key
+	if err := d.loadDriverSSHPublicKey(); err != nil {
+		return err
+	}
 
 	// check format of external SSH public keys
 	for _, externalSSHPubKey := range d.ExternalSSHPublicKeys {
@@ -276,42 +292,52 @@ func (d *Driver) PreCreateCheck() (err error) {
 		}
 	}
 
-	// check if a SSH key pair is available
-	if d.EphemeralSSHKeyPair == nil {
-		// generate a new SSH key pair
-		d.EphemeralSSHKeyPair, err = ssh.NewKeyPair()
-		if err != nil {
-			return fmt.Errorf("Error when generating a new SSH key pair: %s", err.Error())
+	// skip the job submission/reservation if a job ID is provided
+	if d.G5kJobID == 0 {
+		if d.G5kJobStartTime == "" {
+			// make a job submission: the resources will be reserved for immediate use
+			if err := d.makeJobSubmission(); err != nil {
+				return err
+			}
+		} else {
+			// make a job reservation: the resources will be reserved for a defined date/time
+			if err := d.makeJobReservation(); err != nil {
+				return err
+			}
+
+			// stop the machine creation
+			return fmt.Errorf("The job reservation have been successfully sent. Don't forget to save the Job ID to create the machine when the resources are available")
 		}
 	}
 
-	// submit new job reservation
-	if err := d.submitNewJobReservation(); err != nil {
+	return nil
+}
+
+// Create wait for the job to be running, deploy the OS image and copy the ssh keys
+func (d *Driver) Create() error {
+	// wait for job to be in 'running' state
+	if err := d.waitUntilJobIsReady(); err != nil {
 		return err
 	}
 
-	// submit new deployment
-	return d.submitNewDeployment()
-}
+	// get node hostname from API
+	job, err := d.G5kAPI.GetJob(d.G5kJobID)
+	if err != nil {
+		return err
+	}
+	d.BaseDriver.IPAddress = job.Nodes[0]
 
-// Create copy ssh key in docker-machine dir and set the node IP
-func (d *Driver) Create() (err error) {
-	// provisionning only mode
-	if d.G5kHostToProvision != "" {
-		// use provided hostname
-		d.BaseDriver.IPAddress = d.G5kHostToProvision
-	} else {
-		// get hostname from API
-		job, err := d.G5kAPI.GetJob(d.G5kJobID)
-		if err != nil {
-			return err
-		}
-		d.BaseDriver.IPAddress = job.Nodes[0]
+	// deploy OS image to the node
+	if err := d.deployImageToNode(); err != nil {
+		return err
 	}
 
-	// copy ephemeral SSH key pair to machine directory
-	if err := d.EphemeralSSHKeyPair.WriteToFile(d.GetSSHKeyPath(), d.GetSSHKeyPath()+".pub"); err != nil {
-		return fmt.Errorf("Error when copying SSH key pair to machine directory: %s", err.Error())
+	// copy driver SSH key pair to machine directory
+	if err := mcnutils.CopyFile(d.getDriverSSHKeyPath(), d.GetSSHKeyPath()); err != nil {
+		return err
+	}
+	if err := mcnutils.CopyFile(d.getDriverSSHKeyPath()+".pub", d.GetSSHKeyPath()+".pub"); err != nil {
+		return err
 	}
 
 	return nil
