@@ -309,16 +309,16 @@ func (d *Driver) PreCreateCheck() error {
 		}
 	}
 
-	return nil
-}
-
-// Create wait for the job to be running, deploy the OS image and copy the ssh keys
-func (d *Driver) Create() error {
 	// wait for job to be in 'running' state
 	if err := d.waitUntilJobIsReady(); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// Create wait for the job to be running, deploy the OS image and copy the ssh keys
+func (d *Driver) Create() error {
 	// get node hostname from API
 	job, err := d.G5kAPI.GetJob(d.G5kJobID)
 	if err != nil {
