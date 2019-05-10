@@ -22,3 +22,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+docker-machine-driver-g5k
