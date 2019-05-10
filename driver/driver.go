@@ -95,13 +95,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "G5K_RESOURCE_PROPERTIES",
 			Name:   "g5k-resource-properties",
 			Usage:  "Resource selection with OAR properties (SQL format)",
-			Value:  "",
 		},
 
 		mcnflag.BoolFlag{
 			EnvVar: "G5K_SKIP_VPN_CHECKS",
 			Name:   "g5k-skip-vpn-checks",
-			Usage:  "Skip the VPN client connection and DNS configuration checks (for particular use case only, you should not enable this flag in normal use)",
+			Usage:  "Skip the VPN client connection and DNS configuration checks (for specific use case only, you should not enable this flag in normal use)",
 		},
 
 		mcnflag.BoolFlag{
@@ -113,7 +112,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "G5K_JOB_QUEUE",
 			Name:   "g5k-job-queue",
-			Usage:  "Specify the job queue (default or production only, besteffort is NOT supported)",
+			Usage:  "Specify the job queue (besteffort is NOT supported)",
 			Value:  "default",
 		},
 
