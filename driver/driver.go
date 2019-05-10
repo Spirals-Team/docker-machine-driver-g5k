@@ -118,15 +118,15 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 
 		mcnflag.StringFlag{
-			EnvVar: "G5K_MAKE_JOB_RESERVATION",
-			Name:   "g5k-make-job-reservation",
-			Usage:  "Request a job start time/date reservation instead of a submission. The date format is 'YYYY-MM-DD HH:MM:SS' or a UNIX timestamp",
+			EnvVar: "G5K_MAKE_RESOURCE_RESERVATION",
+			Name:   "g5k-make-resource-reservation",
+			Usage:  "Make a resource reservation for the given start date. (in either 'YYYY-MM-DD HH:MM:SS' date format or an UNIX timestamp)",
 		},
 
 		mcnflag.IntFlag{
-			EnvVar: "G5K_USE_JOB_RESERVATION",
-			Name:   "g5k-use-job-reservation",
-			Usage:  "Job reservation ID to use (need to be a job of 'deploy' type and in the 'running' state)",
+			EnvVar: "G5K_USE_RESOURCE_RESERVATION",
+			Name:   "g5k-use-resource-reservation",
+			Usage:  "Use a resource reservation (need to be a job of 'deploy' type and in the 'running' state)",
 		},
 
 		mcnflag.StringSliceFlag{
@@ -149,8 +149,8 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
 	d.G5kJobQueue = opts.String("g5k-job-queue")
-	d.G5kJobStartTime = opts.String("g5k-make-job-reservation")
-	d.G5kJobID = opts.Int("g5k-use-job-reservation")
+	d.G5kJobStartTime = opts.String("g5k-make-resource-reservation")
+	d.G5kJobID = opts.Int("g5k-use-resource-reservation")
 	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
 
 	// Docker Swarm
@@ -178,7 +178,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 
 	// we cannot reuse the reference environment when the job is of type 'deploy'
 	if d.G5kReuseRefEnvironment && (d.G5kJobStartTime != "" || d.G5kJobID != 0) {
-		return fmt.Errorf("Reusing the Grid'5000 reference environment on a job reservation is not supported")
+		return fmt.Errorf("Reusing the Grid'5000 reference environment on a resource reservation is not supported")
 	}
 
 	// warn if user disable VPN check
