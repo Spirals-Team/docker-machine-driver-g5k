@@ -2,18 +2,19 @@ package api
 
 import (
 	"fmt"
-	"time"
+	"sort"
 
 	"github.com/docker/machine/libmachine/log"
 )
 
 // JobRequest represents a new job submission
 type JobRequest struct {
-	Resources  string   `json:"resources"`
-	Command    string   `json:"command"`
-	Properties string   `json:"properties,omitempty"`
-	Types      []string `json:"types"`
-	Queue      string   `json:"queue"`
+	Resources   string   `json:"resources"`
+	Command     string   `json:"command"`
+	Properties  string   `json:"properties,omitempty"`
+	Reservation string   `json:"reservation,omitempty"`
+	Types       []string `json:"types"`
+	Queue       string   `json:"queue"`
 }
 
 // Job represents an existing job
@@ -84,6 +85,8 @@ func (c *Client) GetJob(jobID int) (*Job, error) {
 		return nil, fmt.Errorf("Error in the Job retrieving (unexpected type)")
 	}
 
+	sort.Strings(job.Types)
+	sort.Strings(job.Nodes)
 	return job, nil
 }
 
@@ -114,34 +117,5 @@ func (c *Client) KillJob(jobID int) error {
 		return fmt.Errorf("The server returned an error (code: %d) after job killing request: '%s'", delRes.StatusCode(), delRes.Status())
 	}
 
-	return nil
-}
-
-// WaitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
-func (c *Client) WaitUntilJobIsReady(jobID int) error {
-	log.Info("Waiting for job to run...")
-
-	// refresh job state
-	for job, err := c.GetJob(jobID); job.State != "running"; job, err = c.GetJob(jobID) {
-		// check if GetJob returned an error
-		if err != nil {
-			return err
-		}
-
-		// stop if the job is in 'error' or 'terminated' state
-		if job.State == "error" || job.State == "terminated" {
-			return fmt.Errorf("Can't wait for a job in '%s' state", job.State)
-		}
-
-		// warn if job is in 'hold' state
-		if job.State == "hold" {
-			log.Infof("Job '%s' is in hold state, dont forget to resume it")
-		}
-
-		// wait 3 seconds before making another API call
-		time.Sleep(3 * time.Second)
-	}
-
-	log.Info("Job is running")
 	return nil
 }

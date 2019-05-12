@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"time"
+	"sort"
 
 	"github.com/docker/machine/libmachine/log"
 )
@@ -80,29 +80,6 @@ func (c *Client) GetDeployment(deploymentID string) (*Deployment, error) {
 		return nil, fmt.Errorf("Error in the Deployment retrieving (unexpected type)")
 	}
 
+	sort.Strings(deployment.Nodes)
 	return deployment, nil
-}
-
-// WaitUntilDeploymentIsFinished will wait until the deployment reach the 'terminated' state (no timeout)
-func (c *Client) WaitUntilDeploymentIsFinished(deploymentID string) error {
-	log.Info("Waiting for deployment to finish, it will take a few minutes...")
-
-	// refresh deployment status
-	for deployment, err := c.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = c.GetDeployment(deploymentID) {
-		// check if GetDeployment returned an error
-		if err != nil {
-			return err
-		}
-
-		// stop if the deployment is in 'canceled' or 'error' state
-		if deployment.Status == "canceled" || deployment.Status == "error" {
-			return fmt.Errorf("Can't wait for a deployment in '%s' state", deployment.Status)
-		}
-
-		// wait 10 seconds before making another API call
-		time.Sleep(10 * time.Second)
-	}
-
-	log.Info("Deployment finished successfully")
-	return nil
 }
