@@ -7,6 +7,8 @@ env:
     # Linux
     - GIMME_OS=linux GIMME_ARCH=amd64
     - GIMME_OS=linux GIMME_ARCH=386
+    - GIMME_OS=linux GIMME_ARCH=arm
+    - GIMME_OS=linux GIMME_ARCH=arm64
     # MacOS
     - GIMME_OS=darwin GIMME_ARCH=amd64
     # Windows
