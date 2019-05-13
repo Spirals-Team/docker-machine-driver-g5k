@@ -57,6 +57,7 @@ export PATH=$PATH:$GOPATH/bin
 * `--g5k-reuse-ref-environment` : [Reuse the Grid'5000 reference environment instead of re-deploying the node](#grid5000-reference-environment-reuse)
 * `--g5k-job-queue` : [Specify the job queue (besteffort queue is NOT supported)](#job-queues)
 * `--g5k-external-ssh-public-keys` : SSH public key(s) allowed to connect to the node (in authorized_keys format)
+* `--g5k-keep-resource-at-deletion` : [Keep the allocated resource when removing the machine](#resource-reservation)
 
 #### Flags usage
 |             Option                |          Environment            |     Default value     |
@@ -73,6 +74,7 @@ export PATH=$PATH:$GOPATH/bin
 | `--g5k-reuse-ref-environment`     | `G5K_REUSE_REF_ENVIRONMENT`     | False                 |
 | `--g5k-job-queue`                 | `G5K_JOB_QUEUE`                 | "default"             |
 | `--g5k-external-ssh-public-keys`  | `G5K_EXTERNAL_SSH_PUBLIC_KEYS`  |                       |
+| `--g5k-keep-resource-at-deletion` | `G5K_KEEP_RESOURCE_AT_DELETION` | False                 |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -93,6 +95,10 @@ Don't forget to save the job ID of your reservation in order to be able to creat
 To use a resource reservation, set the `--g5k-use-resource-reservation` flag with the job ID of an existing reservation.  
 This will create a machine, deploy an OS image and provision Docker on the node.  
 Please note that the job must be in `running` state in order for the machine to be created, otherwise the driver will wait until the job start.
+
+By default the resource is automatically deallocated when you remove a machine using the `rm` command.  
+However, you can use the `g5k-keep-resource-at-deletion` flag when creating the machine to keep the resource allocated even when the machine is removed.
+This can be used as safeguard to protect from deallocating the resource when you use an advance reservation that [have been approved by the Grid'5000 executive committee](https://www.grid5000.fr/w/Grid5000:SpecialUsage), or allow to redeploy the node OS image by removing and recreating the machine using the same resource reservation.
 
 More information about the resources reservation are available on the [Grid'5000 Wiki](https://www.grid5000.fr/w/Grid5000:UsagePolicy#Resources_reservation).
 
