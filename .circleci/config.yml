@@ -1,0 +1,103 @@
+# Grid'5000 Docker machine driver CircleCI configuration file
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.12
+
+    working_directory: /go/src/github.com/Spirals-Team/docker-machine-driver-g5k
+
+    steps:
+      - checkout
+
+      - run:
+          name: fetch project dependencies
+          command: go get -v -t -d ./...
+
+      - run:
+          name: check format of Go source files
+          command: test -z "$(gofmt -s -d . 2>&1 |tee /dev/stderr)"
+
+      - run:
+          name: check correctness of Go source files
+          command: go vet -v ./...
+
+      - run:
+          name: run unit tests
+          command: go test -v ./...
+
+      - run:
+          name: compile the project
+          command: go build -v -o bin/docker-machine-driver-g5k
+
+  release:
+    docker:
+      - image: circleci/golang:1.12
+
+    working_directory: /go/src/github.com/Spirals-Team/docker-machine-driver-g5k
+
+    steps:
+      - checkout
+
+      - run:
+          name: fetch project dependencies
+          command: go get -v -d ./...
+
+      - run:
+          name: build binary for Linux amd64 (x86_64)
+          command: GOOS=linux GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-linux-x86_64
+
+      - run:
+          name: build binary for Linux 386 (i386)
+          command: GOOS=linux GOARCH=386 go build -v -o bin/docker-machine-driver-g5k-linux-i386
+
+      - run:
+          name: build binary for Linux arm (armhf)
+          command: GOOS=linux GOARCH=arm go build -v -o bin/docker-machine-driver-g5k-linux-armhf
+
+      - run:
+          name: build binary for Linux arm64 (aarch64)
+          command: GOOS=linux GOARCH=arm go build -v -o bin/docker-machine-driver-g5k-linux-aarch64
+
+      - run:
+          name: build binary for Windows amd64 (x86_64)
+          command: GOOS=windows GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-windows-x86_64
+
+      - run:
+          name: build binary for Windows 386 (i386)
+          command: GOOS=windows GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-windows-i386
+
+      - run:
+          name: build binary for MacOS amd64 (x86_64)
+          command: GOOS=darwin GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-macos-x86_64
+
+      - run:
+          name: generate md5, sha256 and blake2 digest files
+          command: |
+            (cd src && md5sum docker-machine-driver-g5k-* >MD5SUMS)
+            (cd src && sha256sum docker-machine-driver-g5k-* >SHA256SUMS)
+            (cd src && b2sum docker-machine-driver-g5k-* >BLAKE2SUMS)
+
+      - run:
+          name: upload binaries and digest files to GitHub releases
+          command: |
+            go get -u github.com/tcnksm/ghr
+            ghr -t "$GITHUB_TOKEN" "$CIRCLE_TAG" bin/
+
+workflows:
+  version: 2
+  build-n-release:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+
+      - release:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/

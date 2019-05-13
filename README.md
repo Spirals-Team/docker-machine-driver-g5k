@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/Spirals-Team/docker-machine-driver-g5k.svg)](https://travis-ci.org/Spirals-Team/docker-machine-driver-g5k)
+[![CircleCI](https://circleci.com/gh/Spirals-Team/docker-machine-driver-g5k.svg?style=svg)](https://circleci.com/gh/Spirals-Team/docker-machine-driver-g5k)
 [![License](https://img.shields.io/github/license/Spirals-Team/docker-machine-driver-g5k.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # docker-machine-driver-g5k
