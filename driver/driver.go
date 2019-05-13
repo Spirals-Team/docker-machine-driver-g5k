@@ -22,20 +22,21 @@ const g5kReferenceEnvironmentName string = "debian9-x64-std"
 type Driver struct {
 	*drivers.BaseDriver
 
-	G5kAPI                 *api.Client
-	G5kJobID               int
-	G5kUsername            string
-	G5kPassword            string
-	G5kSite                string
-	G5kWalltime            string
-	G5kImage               string
-	G5kResourceProperties  string
-	G5kSkipVpnChecks       bool
-	G5kReuseRefEnvironment bool
-	G5kJobQueue            string
-	G5kJobStartTime        string
-	DriverSSHPublicKey     string
-	ExternalSSHPublicKeys  []string
+	G5kAPI                             *api.Client
+	G5kJobID                           int
+	G5kUsername                        string
+	G5kPassword                        string
+	G5kSite                            string
+	G5kWalltime                        string
+	G5kImage                           string
+	G5kResourceProperties              string
+	G5kSkipVpnChecks                   bool
+	G5kReuseRefEnvironment             bool
+	G5kJobQueue                        string
+	G5kJobStartTime                    string
+	DriverSSHPublicKey                 string
+	ExternalSSHPublicKeys              []string
+	G5kKeepAllocatedResourceAtDeletion bool
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -134,6 +135,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Additional SSH public key(s) allowed to connect to the node (in authorized_keys format)",
 			Value:  []string{},
 		},
+
+		mcnflag.BoolFlag{
+			EnvVar: "G5K_KEEP_RESOURCE_AT_DELETION",
+			Name:   "g5k-keep-resource-at-deletion",
+			Usage:  "Keep the allocated resource when removing the machine (the job will NOT be killed)",
+		},
 	}
 }
 
@@ -151,6 +158,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kJobStartTime = opts.String("g5k-make-resource-reservation")
 	d.G5kJobID = opts.Int("g5k-use-resource-reservation")
 	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
+	d.G5kKeepAllocatedResourceAtDeletion = opts.Bool("g5k-keep-resource-at-deletion")
 
 	// Docker Swarm
 	d.BaseDriver.SetSwarmConfigFromFlags(opts)
@@ -344,10 +352,11 @@ func (d *Driver) Create() error {
 
 // Remove delete the resources reservation
 func (d *Driver) Remove() error {
-	log.Infof("Killing job... (id: '%d')", d.G5kJobID)
-
-	// send kill job command to API
-	d.G5kAPI.KillJob(d.G5kJobID)
+	// keep the resource allocated if the user asked for it
+	if !d.G5kKeepAllocatedResourceAtDeletion {
+		log.Infof("Killing job... (id: '%d')", d.G5kJobID)
+		d.G5kAPI.KillJob(d.G5kJobID)
+	}
 
 	return nil
 }
