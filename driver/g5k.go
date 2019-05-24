@@ -252,3 +252,83 @@ func (d *Driver) deployImageToNode() error {
 
 	return nil
 }
+
+// getNodePowerState returns the power status of the node by querying its baseboard management controller (BMC)
+func (d *Driver) getNodePowerState() (string, error) {
+	node, err := d.GetIP()
+	if err != nil {
+		return "", fmt.Errorf("Failed to get the node hostname: %s", err.Error())
+	}
+
+	op, err := d.G5kAPI.RequestPowerStatus(node)
+	if err != nil {
+		return "", fmt.Errorf("Failed to request power status: %s", err.Error())
+	}
+
+	if err := d.waitUntilWorkflowIsDone("power", op.WID, node); err != nil {
+		return "", err
+	}
+
+	// get nodes states for the workflow
+	states, err := d.G5kAPI.GetOperationStates("power", op.WID)
+	if err != nil {
+		return "", err
+	}
+
+	// get the state of the current node
+	state, ok := (*states)[node]
+	if !ok {
+		return "", fmt.Errorf("Failed to retrieve the workflow state of the power status operation")
+	}
+
+	// extract the BMC power status from the state out attribute
+	re := regexp.MustCompile(`-bmc: (on|off)$`)
+	matches := re.FindStringSubmatch(state.Out)
+	if matches == nil {
+		return "", fmt.Errorf("The BMC status in the workflow state is invalid: %s", state.Out)
+	}
+
+	return matches[1], nil
+}
+
+// changeNodePowerStatus change the power status (on/off) of the node with the given level (soft/hard)
+func (d *Driver) changeNodePowerStatus(status string, level string) error {
+	node, err := d.GetIP()
+	if err != nil {
+		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
+	}
+
+	op, err := d.G5kAPI.SubmitPowerOperation(api.PowerOperation{
+		Nodes:  []string{node},
+		Status: status,
+		Level:  level,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Power-%s (%s) operation for '%s' node have been submitted successfully (workflow id: '%s')", status, level, node, op.WID)
+	return d.waitUntilWorkflowIsDone("power", op.WID, node)
+}
+
+// rebootNode reboot the node with the given level (soft/hard)
+func (d *Driver) rebootNode(level string) error {
+	node, err := d.GetIP()
+	if err != nil {
+		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
+	}
+
+	op, err := d.G5kAPI.SubmitRebootOperation(api.RebootOperation{
+		Kind:  "simple",
+		Nodes: []string{node},
+		Level: level,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Reboot (%s) operation for '%s' node have been submitted successfully (workflow id: '%s')", level, node, op.WID)
+	return d.waitUntilWorkflowIsDone("reboot", op.WID, node)
+}
