@@ -26,22 +26,6 @@ func (d *Driver) checkVpnConnection() error {
 	return nil
 }
 
-// generateSSHAuthorizedKeys generate the SSH AuthorizedKeys composed of the driver and user defined key(s)
-func (d *Driver) generateSSHAuthorizedKeys() string {
-	var authorizedKeysEntries []string
-
-	// add driver key
-	authorizedKeysEntries = append(authorizedKeysEntries, "# docker-machine driver g5k - driver key")
-	authorizedKeysEntries = append(authorizedKeysEntries, d.DriverSSHPublicKey)
-
-	// add external key(s)
-	for index, externalPubKey := range d.ExternalSSHPublicKeys {
-		authorizedKeysEntries = append(authorizedKeysEntries, fmt.Sprintf("# docker-machine driver g5k - additional key %d", index))
-		authorizedKeysEntries = append(authorizedKeysEntries, strings.TrimSpace(externalPubKey))
-	}
-
-	return strings.Join(authorizedKeysEntries, "\n") + "\n"
-}
 // waitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
 func (d *Driver) waitUntilJobIsReady() error {
 	log.Info("Waiting for job to run...")
