@@ -2,19 +2,11 @@ package driver
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
+	"regexp"
 	"time"
-
-	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/Spirals-Team/docker-machine-driver-g5k/api"
 	"github.com/docker/machine/libmachine/log"
-	"github.com/docker/machine/libmachine/ssh"
 )
 
 // checkVpnConnection check if the VPN is connected and properly configured (DNS) by trying to connect to the site frontend SSH server using its hostname
@@ -34,52 +26,6 @@ func (d *Driver) checkVpnConnection() error {
 	return nil
 }
 
-// resolveDriverStorePath returns the store path of the driver
-func (d *Driver) resolveDriverStorePath(file string) string {
-	return filepath.Join(d.StorePath, "g5k", file)
-}
-
-// prepareDriverStoreDirectory initialize the driver storage directory
-func (d *Driver) prepareDriverStoreDirectory() error {
-	driverStoreBasePath := d.resolveDriverStorePath(".")
-
-	// create the directory if needed
-	if _, err := os.Stat(driverStoreBasePath); os.IsNotExist(err) {
-		if err := os.Mkdir(driverStoreBasePath, 0700); err != nil {
-			return fmt.Errorf("Failed to create the driver storage directory: %s", err)
-		}
-	}
-
-	return nil
-}
-
-// getDriverSSHKeyPath returns the path leading to the driver SSH private key (append .pub to get the public key)
-func (d *Driver) getDriverSSHKeyPath() string {
-	return d.resolveDriverStorePath("id_rsa")
-}
-
-// loadDriverSSHPublicKey load the driver SSH Public key from the storage dir, the key will be created if needed
-func (d *Driver) loadDriverSSHPublicKey() error {
-	driverSSHKeyPath := d.getDriverSSHKeyPath()
-
-	// generate the driver SSH key pair if needed
-	if _, err := os.Stat(driverSSHKeyPath); os.IsNotExist(err) {
-		if err := ssh.GenerateSSHKey(driverSSHKeyPath); err != nil {
-			return fmt.Errorf("Failed to generate the driver ssh key: %s", err)
-		}
-	}
-
-	// load the public key from file
-	sshPublicKey, err := ioutil.ReadFile(d.getDriverSSHKeyPath() + ".pub")
-	if err != nil {
-		return fmt.Errorf("Failed to load the driver ssh public key: %s", err)
-	}
-
-	// store the public key for future use
-	d.DriverSSHPublicKey = strings.TrimSpace(string(sshPublicKey))
-	return nil
-}
-
 // generateSSHAuthorizedKeys generate the SSH AuthorizedKeys composed of the driver and user defined key(s)
 func (d *Driver) generateSSHAuthorizedKeys() string {
 	var authorizedKeysEntries []string
@@ -96,7 +42,6 @@ func (d *Driver) generateSSHAuthorizedKeys() string {
 
 	return strings.Join(authorizedKeysEntries, "\n") + "\n"
 }
-
 // waitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
 func (d *Driver) waitUntilJobIsReady() error {
 	log.Info("Waiting for job to run...")
