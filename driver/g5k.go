@@ -100,27 +100,37 @@ func (d *Driver) makeJobReservation() error {
 	return nil
 }
 
-// waitUntilDeploymentIsFinished will wait until the deployment reach the 'terminated' state (no timeout)
-func (d *Driver) waitUntilDeploymentIsFinished(deploymentID string) error {
-	log.Info("Waiting for deployment to finish, it will take a few minutes...")
+// waitUntilWorkflowIsDone will wait until the workflow for the given operation is done (successfully or not) for the node
+func (d *Driver) waitUntilWorkflowIsDone(operation string, wid string, node string) error {
+	log.Infof("Waiting for workflow of '%s' operation to finish, it will take a few minutes...", operation)
 
-	// refresh deployment status
-	for deployment, err := d.G5kAPI.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = d.G5kAPI.GetDeployment(deploymentID) {
-		// check if GetDeployment returned an error
+	for {
+		// get operation workflow
+		workflow, err := d.G5kAPI.GetOperationWorkflow(operation, wid)
 		if err != nil {
 			return err
 		}
 
-		// stop if the deployment is in 'canceled' or 'error' state
-		if deployment.Status == "canceled" || deployment.Status == "error" {
-			return fmt.Errorf("Can't wait for a deployment in '%s' state", deployment.Status)
+		// check if the workflow is done for the node
+		if ArrayContainsString(workflow.Nodes["ok"], node) {
+			break
 		}
 
-		// wait 10 seconds before making another API call
-		time.Sleep(10 * time.Second)
+		// check if the workflow failed for the node
+		if ArrayContainsString(workflow.Nodes["ko"], node) {
+			return fmt.Errorf("Workflow for '%s' operation failed for the '%s' node", operation, node)
+		}
+
+		// check if the workflow is processing the node
+		if ArrayContainsString(workflow.Nodes["processing"], node) {
+			log.Debugf("Workflow for '%s' operation is in processing state for the '%s' node", operation, node)
+		}
+
+		// wait before making another API call
+		time.Sleep(7 * time.Second)
 	}
 
-	log.Info("Deployment finished successfully")
+	log.Infof("Workflow for '%s' operation finished successfully for the '%s' node", operation, node)
 	return nil
 }
 
