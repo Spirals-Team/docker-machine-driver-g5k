@@ -35,3 +35,16 @@ func GenerateSSHAuthorizedKeys(driverKey string, externalKeys []string) string {
 
 	return strings.Join(authorizedKeysEntries, "\n") + "\n"
 }
+
+// CheckSSHConnection will try a SSH connection to the given hostname
+func CheckSSHConnection(hostname string) error {
+	_, err := ssh.Dial("tcp", net.JoinHostPort(hostname, "22"), &ssh.ClientConfig{Timeout: time.Second * 2})
+
+	// we need to check if the error is network-related because the SSH Dial will always return an error due to the Authentication being not configured
+	if _, ok := err.(*net.OpError); ok {
+		return fmt.Errorf("Failed to connect to the SSH server on the node '%s' using port 22", hostname)
+	}
+
+	// ignore other errors because the ssh Dial will always return an error as there is no auth method configured
+	return nil
+}

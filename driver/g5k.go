@@ -9,17 +9,10 @@ import (
 	"github.com/docker/machine/libmachine/log"
 )
 
-// checkVpnConnection check if the VPN is connected and properly configured (DNS) by trying to connect to the site frontend SSH server using its hostname
-func (d *Driver) checkVpnConnection() error {
-	// construct site frontend hostname
-	frontend := fmt.Sprintf("frontend.%s.grid5000.fr:22", d.G5kSite)
-
-	// try to connect to the frontend SSH server
-	sshConfig := &gossh.ClientConfig{}
-	_, err := gossh.Dial("tcp", frontend, sshConfig)
-
-	// we need to check if the error is network-related because the SSH Dial will always return an error due to the Authentication being not configured
-	if _, ok := err.(*net.OpError); ok {
+func (d *Driver) checkVpnConfiguration() error {
+	// Check VPN connection by trying to connect to the ssh server of the frontend of the current site.
+	// This allows to test if the user use the VPN and the Grid'5000 DNS servers.
+	if err := CheckSSHConnection(fmt.Sprintf("frontend.%s.grid5000.fr", d.G5kSite)); err != nil {
 		return fmt.Errorf("Connection to frontend of '%s' site failed. Please check if the site is not undergoing maintenance and your VPN client is connected and properly configured (see driver documentation for more information)", d.G5kSite)
 	}
 
