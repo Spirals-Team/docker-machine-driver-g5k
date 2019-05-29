@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"encoding/base64"
 	"fmt"
 	"regexp"
 	"time"
@@ -58,8 +59,10 @@ func (d *Driver) makeJobSubmission() error {
 	if d.G5kReuseRefEnvironment {
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
+		// convert the ssh authorized_keys to be added in base64
+		sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
-		jobCommand = `sudo-g5k && echo -n "` + d.generateSSHAuthorizedKeys() + `" |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`
+		jobCommand = fmt.Sprint(`sudo-g5k && printf ` + sshAuthorizedKeysBase64 + ` |base64 -d |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`)
 	}
 
 	// submit new Job request
@@ -74,6 +77,7 @@ func (d *Driver) makeJobSubmission() error {
 		return fmt.Errorf("Error when submitting new job: %s", err.Error())
 	}
 
+	log.Infof("Job submission have been successfully submitted. (job id: %d)", jobID)
 	d.G5kJobID = jobID
 	return nil
 }
@@ -96,6 +100,7 @@ func (d *Driver) makeJobReservation() error {
 		return fmt.Errorf("Error when submitting new job: %s", err.Error())
 	}
 
+	log.Infof("Job reservation have been successfully submitted. (job id: %d)", jobID)
 	d.G5kJobID = jobID
 	return nil
 }
@@ -134,18 +139,11 @@ func (d *Driver) waitUntilWorkflowIsDone(operation string, wid string, node stri
 	return nil
 }
 
-// handleDeploymentError deallocate the resources when the deployment fail
-func (d *Driver) handleDeploymentError() {
-	// if deployment fail, we can't recover from this error, so we kill the job
-	log.Infof("Unrecoverable error in deployment, killing job ID '%d'...", d.G5kJobID)
-	d.G5kAPI.KillJob(d.G5kJobID)
-}
-
 // deployImageToNode start the deployment of an OS image to a node
 func (d *Driver) deployImageToNode() error {
 	// if the user want to reuse Grid'5000 reference environment
 	if d.G5kReuseRefEnvironment {
-		log.Infof("Skipping host deployment and reusing Grid'5000 standard environment")
+		log.Infof("Skipping image deployment and reusing Grid'5000 standard environment")
 		return nil
 	}
 
@@ -156,29 +154,51 @@ func (d *Driver) deployImageToNode() error {
 	}
 
 	// check job type before deploying
-	if sort.SearchStrings(job.Types, "deploy") != 0 {
+	if !ArrayContainsString(job.Types, "deploy") {
 		return fmt.Errorf("The job (id: %d) needs to have the type 'deploy'", d.G5kJobID)
 	}
 
-	// check if there is only one node for this reservation
-	if len(job.Nodes) != 1 {
-		return fmt.Errorf("The job (id: '%d') needs to have only one node instead of %d", d.G5kJobID, len(job.Nodes))
+	// get the hostname of the node
+	node, err := d.GetIP()
+	if err != nil {
+		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
 	}
 
-	// deploy environment
-	deploymentID, err := d.G5kAPI.SubmitDeployment(api.DeploymentRequest{
-		Nodes:       job.Nodes,
-		Environment: d.G5kImage,
-		Key:         d.generateSSHAuthorizedKeys(),
+	log.Infof("Submitting a new deployment for node '%s'... (image: '%s')", node, d.G5kImage)
+
+	// convert the ssh authorized_keys to be added in base64
+	sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
+
+	// submit deployment operation to kadeploy
+	op, err := d.G5kAPI.SubmitDeployment(api.DeploymentOperation{
+		Nodes: []string{node},
+		Environment: api.DeploymentOperationEnvironment{
+			Kind: "database",
+			Name: d.G5kImage,
+		},
+		CustomOperations: map[string]map[string]map[string][]api.DeploymentOperationCustomOperation{
+			"BroadcastEnvKascade": {
+				"manage_user_post_install": {
+					"post-ops": {
+						api.DeploymentOperationCustomOperation{
+							Name:    "docker_machine_driver_ssh_root_pub_keys",
+							Action:  "exec",
+							Command: fmt.Sprint(`printf ` + sshAuthorizedKeysBase64 + ` |base64 -d >> $KADEPLOY_ENV_EXTRACTION_DIR/root/.ssh/authorized_keys`),
+						},
+					},
+				},
+			},
+		},
 	})
+
 	if err != nil {
-		d.handleDeploymentError()
 		return fmt.Errorf("Error when submitting new deployment: %s", err.Error())
 	}
 
+	log.Infof("Deployment operation for '%s' node have been submitted successfully (workflow id: '%s')", node, op.WID)
+
 	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
-	if err = d.waitUntilDeploymentIsFinished(deploymentID); err != nil {
-		d.handleDeploymentError()
+	if err = d.waitUntilWorkflowIsDone("deployment", op.WID, node); err != nil {
 		return fmt.Errorf("Error when waiting for deployment to finish: %s", err.Error())
 	}
 
