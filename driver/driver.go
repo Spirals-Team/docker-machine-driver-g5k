@@ -244,16 +244,23 @@ func (d *Driver) GetSSHUsername() string {
 	return d.BaseDriver.GetSSHUsername()
 }
 
-// GetURL returns the URL of the docker daemon
+// GetURL returns a Docker compatible host URL for connecting to this host
 func (d *Driver) GetURL() (string, error) {
-	// get IP address
+	if err := drivers.MustBeRunning(d); err != nil {
+		return "", err
+	}
+
 	ip, err := d.GetIP()
 	if err != nil {
 		return "", err
 	}
 
-	// format URL 'tcp://host:2376'
-	return fmt.Sprintf("tcp://%s", net.JoinHostPort(ip, "2376")), nil
+	u := url.URL{
+		Scheme: "tcp",
+		Host:   net.JoinHostPort(ip, "2376"),
+	}
+
+	return u.String(), nil
 }
 
 // GetState returns the state of the node
