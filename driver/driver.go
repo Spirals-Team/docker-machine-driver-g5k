@@ -201,9 +201,22 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	return nil
 }
 
-// GetIP returns the ip
+// GetIP returns an IP or hostname that this host is available at
 func (d *Driver) GetIP() (string, error) {
-	return d.BaseDriver.GetIP()
+	if d.IPAddress == "" {
+		job, err := d.G5kAPI.GetJob(d.G5kJobID)
+		if err != nil {
+			return "", err
+		}
+
+		if len(job.Nodes) == 0 {
+			return "", fmt.Errorf("Failed to resolve IP address: The node have not been allocated")
+		}
+
+		d.IPAddress = job.Nodes[0]
+	}
+
+	return d.IPAddress, nil
 }
 
 // GetMachineName returns the machine name
