@@ -309,16 +309,13 @@ func (d *Driver) GetState() (state.State, error) {
 
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() error {
-	// prepare the driver store dir
 	if err := d.prepareDriverStoreDirectory(); err != nil {
 		return err
 	}
 
-	// check VPN connection if enabled
-	if !d.G5kSkipVpnChecks {
-		if err := d.checkVpnConnection(); err != nil {
-			return err
-		}
+	// check if the user is connected to the Grid'5000 VPN and its configuration is valid
+	if err := d.checkVpnConfiguration(); err != nil {
+		return err
 	}
 
 	// create API client
@@ -355,24 +352,16 @@ func (d *Driver) PreCreateCheck() error {
 		}
 	}
 
-	// wait for job to be in 'running' state
-	if err := d.waitUntilJobIsReady(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // Create wait for the job to be running, deploy the OS image and copy the ssh keys
 func (d *Driver) Create() error {
-	// get node hostname from API
-	job, err := d.G5kAPI.GetJob(d.G5kJobID)
-	if err != nil {
+	// wait for job to be in 'running' state
+	if err := d.waitUntilJobIsReady(); err != nil {
 		return err
 	}
-	d.BaseDriver.IPAddress = job.Nodes[0]
 
-	// deploy OS image to the node
 	if err := d.deployImageToNode(); err != nil {
 		return err
 	}
