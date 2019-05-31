@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"net"
+	"net/url"
 
 	"github.com/docker/machine/libmachine/mcnutils"
 
@@ -224,22 +225,22 @@ func (d *Driver) GetMachineName() string {
 	return d.BaseDriver.GetMachineName()
 }
 
-// GetSSHHostname returns the machine hostname
+// GetSSHHostname returns hostname for use with ssh
 func (d *Driver) GetSSHHostname() (string, error) {
 	return d.GetIP()
 }
 
-// GetSSHKeyPath returns the ssh private key path
+// GetSSHKeyPath returns key path for use with ssh
 func (d *Driver) GetSSHKeyPath() string {
 	return d.BaseDriver.GetSSHKeyPath()
 }
 
-// GetSSHPort returns the ssh port
+// GetSSHPort returns port for use with ssh
 func (d *Driver) GetSSHPort() (int, error) {
 	return d.BaseDriver.GetSSHPort()
 }
 
-// GetSSHUsername returns the ssh user name
+// GetSSHUsername returns username for use with ssh
 func (d *Driver) GetSSHUsername() string {
 	return d.BaseDriver.GetSSHUsername()
 }
@@ -381,29 +382,29 @@ func (d *Driver) Create() error {
 func (d *Driver) Remove() error {
 	// keep the resource allocated if the user asked for it
 	if !d.G5kKeepAllocatedResourceAtDeletion {
-		log.Infof("Killing job... (id: '%d')", d.G5kJobID)
-		d.G5kAPI.KillJob(d.G5kJobID)
+		log.Infof("Deallocating resource... (Job ID: '%d')", d.G5kJobID)
+		return d.G5kAPI.KillJob(d.G5kJobID)
 	}
 
 	return nil
 }
 
-// Kill don't do anything
+// Kill perform a hard power-off on the node
 func (d *Driver) Kill() error {
-	return fmt.Errorf("The 'kill' operation is not supported on Grid'5000")
+	return d.changeNodePowerStatus("off", "hard")
 }
 
-// Start don't do anything
+// Start perform a soft power-on on the node
 func (d *Driver) Start() error {
-	return fmt.Errorf("The 'start' operation is not supported on Grid'5000")
+	return d.changeNodePowerStatus("on", "soft")
 }
 
-// Stop don't do anything
+// Stop perform a soft power-off on the node
 func (d *Driver) Stop() error {
-	return fmt.Errorf("The 'stop' operation is not supported on Grid'5000")
+	return d.changeNodePowerStatus("off", "soft")
 }
 
-// Restart don't do anything
+// Restart perform a soft reboot on the node
 func (d *Driver) Restart() error {
-	return fmt.Errorf("The 'restart' operation is not supported on Grid'5000")
+	return d.rebootNode("soft")
 }
