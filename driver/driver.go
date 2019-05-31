@@ -263,30 +263,48 @@ func (d *Driver) GetURL() (string, error) {
 	return u.String(), nil
 }
 
-// GetState returns the state of the node
+// GetState returns the state that the host is in (running, stopped, etc)
 func (d *Driver) GetState() (state.State, error) {
-	// get job state from API
-	status, err := d.G5kAPI.GetJobState(d.G5kJobID)
+	job, err := d.G5kAPI.GetJob(d.G5kJobID)
 	if err != nil {
-		return state.Error, err
+		return state.None, err
 	}
 
-	switch status {
+	// filter job status where the node is not available
+	switch job.State {
 	case "waiting":
 		return state.Starting, nil
 	case "launching":
 		return state.Starting, nil
-	case "running":
-		return state.Running, nil
 	case "hold":
 		return state.Stopped, nil
 	case "error":
 		return state.Error, nil
 	case "terminated":
 		return state.Stopped, nil
+	case "running":
+		// noop, needs further checks
 	default:
-		return state.None, nil
+		return state.None, fmt.Errorf("The job (id: %v) is in an unexpected state: %s", job.UID, job.State)
 	}
+
+	// Try to connect to the site frontend ssh server before continuing.
+	// This prevent to wrongly report the machine as Stopped when the user is disconnected from the VPN.
+	if err := d.checkVpnConfiguration(); err != nil {
+		return state.None, err
+	}
+
+	ip, err := d.GetIP()
+	if err != nil {
+		return state.None, err
+	}
+
+	// Try to connect to the node ssh server
+	if err := CheckSSHConnection(ip); err != nil {
+		return state.Stopped, nil
+	}
+
+	return state.Running, nil
 }
 
 // PreCreateCheck check parameters and submit the job to Grid5000
