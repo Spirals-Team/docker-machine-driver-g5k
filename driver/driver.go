@@ -31,7 +31,6 @@ type Driver struct {
 	G5kWalltime                        string
 	G5kImage                           string
 	G5kResourceProperties              string
-	G5kSkipVpnChecks                   bool
 	G5kReuseRefEnvironment             bool
 	G5kJobQueue                        string
 	G5kJobStartTime                    string
@@ -100,12 +99,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 
 		mcnflag.BoolFlag{
-			EnvVar: "G5K_SKIP_VPN_CHECKS",
-			Name:   "g5k-skip-vpn-checks",
-			Usage:  "Skip the VPN client connection and DNS configuration checks (for specific use case only, you should not enable this flag in normal use)",
-		},
-
-		mcnflag.BoolFlag{
 			EnvVar: "G5K_REUSE_REF_ENVIRONMENT",
 			Name:   "g5k-reuse-ref-environment",
 			Usage:  "Reuse the Grid'5000 reference environment instead of re-deploying the node (it saves a lot of time)",
@@ -153,7 +146,6 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kWalltime = opts.String("g5k-walltime")
 	d.G5kImage = opts.String("g5k-image")
 	d.G5kResourceProperties = opts.String("g5k-resource-properties")
-	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
 	d.G5kJobQueue = opts.String("g5k-job-queue")
 	d.G5kJobStartTime = opts.String("g5k-make-resource-reservation")
@@ -187,11 +179,6 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	// we cannot reuse the reference environment when the job is of type 'deploy'
 	if d.G5kReuseRefEnvironment && (d.G5kJobStartTime != "" || d.G5kJobID != 0) {
 		return fmt.Errorf("Reusing the Grid'5000 reference environment on a resource reservation is not supported")
-	}
-
-	// warn if user disable VPN check
-	if d.G5kSkipVpnChecks {
-		log.Warn("VPN client connection and DNS configuration checks are disabled")
 	}
 
 	// we cannot use the besteffort queue with docker-machine
