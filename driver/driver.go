@@ -37,6 +37,7 @@ type Driver struct {
 	DriverSSHPublicKey                 string
 	ExternalSSHPublicKeys              []string
 	G5kKeepAllocatedResourceAtDeletion bool
+	G5kNodeHostname                    string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -123,6 +124,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Use a resource reservation (need to be a job of 'deploy' type and in the 'running' state)",
 		},
 
+		mcnflag.StringFlag{
+			EnvVar: "G5K_SELECT_NODE_FROM_RESERVATION",
+			Name:   "g5k-select-node-from-reservation",
+			Usage:  "Hostname of the node to use from the reservation. (SHOULD be in the allocated node(s) of the resource reservation)",
+		},
+
 		mcnflag.StringSliceFlag{
 			EnvVar: "G5K_EXTERNAL_SSH_PUBLIC_KEYS",
 			Name:   "g5k-external-ssh-public-keys",
@@ -140,6 +147,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 
 // SetConfigFromFlags configure the driver from the command line arguments
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
+	d.BaseDriver.SetSwarmConfigFromFlags(opts)
 	d.G5kUsername = opts.String("g5k-username")
 	d.G5kPassword = opts.String("g5k-password")
 	d.G5kSite = opts.String("g5k-site")
@@ -152,38 +160,40 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.G5kJobID = opts.Int("g5k-use-resource-reservation")
 	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
 	d.G5kKeepAllocatedResourceAtDeletion = opts.Bool("g5k-keep-resource-at-deletion")
+	d.G5kNodeHostname = opts.String("g5k-select-node-from-reservation")
 
-	// Docker Swarm
-	d.BaseDriver.SetSwarmConfigFromFlags(opts)
-
-	// username is required
 	if d.G5kUsername == "" {
 		return fmt.Errorf("You must give your Grid5000 account username")
 	}
-
-	// password is required
 	if d.G5kPassword == "" {
 		return fmt.Errorf("You must give your Grid5000 account password")
 	}
-
-	// site is required
 	if d.G5kSite == "" {
 		return fmt.Errorf("You must give the site you want to reserve the resources on")
 	}
 
-	// contradictory use of parameters: providing an image to deploy while trying to reuse the reference environment
-	if d.G5kReuseRefEnvironment && d.G5kImage != g5kReferenceEnvironmentName {
-		return fmt.Errorf("You have to choose between reusing the reference environment or redeploying the node with another image")
-	}
-
-	// we cannot reuse the reference environment when the job is of type 'deploy'
-	if d.G5kReuseRefEnvironment && (d.G5kJobStartTime != "" || d.G5kJobID != 0) {
-		return fmt.Errorf("Reusing the Grid'5000 reference environment on a resource reservation is not supported")
-	}
-
-	// we cannot use the besteffort queue with docker-machine
+	// The besteffort queue is only for interruptible jobs and cannot be used in the case of Docker machine
 	if d.G5kJobQueue == "besteffort" {
 		return fmt.Errorf("The besteffort queue is not supported")
+	}
+
+	if d.G5kReuseRefEnvironment {
+		// Contradictory use of parameters: providing an image to deploy while trying to reuse the reference environment
+		if d.G5kImage != g5kReferenceEnvironmentName {
+			return fmt.Errorf("You have to choose between reusing the reference environment or redeploying the node with another image")
+		}
+
+		// Reusing the reference environment is only possible when the job is NOT of type 'deploy'
+		if d.G5kJobStartTime != "" || d.G5kJobID != 0 {
+			return fmt.Errorf("Reusing the Grid'5000 reference environment on a resource reservation is not supported")
+		}
+	}
+
+	if d.G5kNodeHostname != "" {
+		// Node selection flag can only be used on a resource reservation because there will be only one node in a submission.
+		if d.G5kJobID == 0 {
+			return fmt.Errorf("You cannot select a node when doing a job submission")
+		}
 	}
 
 	return nil
@@ -192,16 +202,20 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 // GetIP returns an IP or hostname that this host is available at
 func (d *Driver) GetIP() (string, error) {
 	if d.IPAddress == "" {
-		job, err := d.G5kAPI.GetJob(d.G5kJobID)
-		if err != nil {
-			return "", err
+		if d.G5kNodeHostname == "" {
+			job, err := d.G5kAPI.GetJob(d.G5kJobID)
+			if err != nil {
+				return "", err
+			}
+
+			if len(job.Nodes) == 0 {
+				return "", fmt.Errorf("Failed to resolve IP address: The node have not been allocated")
+			}
+
+			d.G5kNodeHostname = job.Nodes[0]
 		}
 
-		if len(job.Nodes) == 0 {
-			return "", fmt.Errorf("Failed to resolve IP address: The node have not been allocated")
-		}
-
-		d.IPAddress = job.Nodes[0]
+		d.IPAddress = d.G5kNodeHostname
 	}
 
 	return d.IPAddress, nil
@@ -273,7 +287,7 @@ func (d *Driver) GetState() (state.State, error) {
 	case "running":
 		// noop, needs further checks
 	default:
-		return state.None, fmt.Errorf("The job (id: %v) is in an unexpected state: %s", job.UID, job.State)
+		return state.None, fmt.Errorf("The job is in an unexpected state: %s", job.State)
 	}
 
 	// Try to connect to the site frontend ssh server before continuing.

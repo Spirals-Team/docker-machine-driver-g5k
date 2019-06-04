@@ -164,6 +164,11 @@ func (d *Driver) deployImageToNode() error {
 		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
 	}
 
+	// check if the node is allocated to the job
+	if !ArrayContainsString(job.Nodes, node) {
+		return fmt.Errorf("The node '%s' is not allocated to the job (id: %d)", node, d.G5kJobID)
+	}
+
 	log.Infof("Submitting a new deployment for node '%s'... (image: '%s')", node, d.G5kImage)
 
 	// convert the ssh authorized_keys to be added in base64
