@@ -250,6 +250,10 @@ func (d *Driver) getNodePowerState() (string, error) {
 
 // changeNodePowerStatus change the power status (on/off) of the node with the given level (soft/hard)
 func (d *Driver) changeNodePowerStatus(status string, level string) error {
+	if d.G5kReuseRefEnvironment {
+		return fmt.Errorf("You can't power-%s (%s) the node when reusing the Grid'5000 environment", status, level)
+	}
+
 	node, err := d.GetIP()
 	if err != nil {
 		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
@@ -271,6 +275,10 @@ func (d *Driver) changeNodePowerStatus(status string, level string) error {
 
 // rebootNode reboot the node with the given level (soft/hard)
 func (d *Driver) rebootNode(level string) error {
+	if d.G5kReuseRefEnvironment {
+		return fmt.Errorf("You can't reboot (%s) the node when reusing the Grid'5000 environment", level)
+	}
+
 	node, err := d.GetIP()
 	if err != nil {
 		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
