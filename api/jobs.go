@@ -2,9 +2,7 @@ package api
 
 import (
 	"fmt"
-	"sort"
-
-	"github.com/docker/machine/libmachine/log"
+	"net/url"
 )
 
 // JobRequest represents a new job submission
@@ -29,92 +27,67 @@ type Job struct {
 
 // SubmitJob submit a new job on g5k api and return the job id
 func (c *Client) SubmitJob(jobReq JobRequest) (int, error) {
-	// create url for API call
-	url := fmt.Sprintf("%s/sites/%s/jobs", G5kAPIFrontend, c.Site)
-
-	log.Info("Submitting a new job...")
-
 	// send job request
-	jobRes, err := c.Request().
+	req, err := c.getRequest().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jobReq).
 		SetResult(&Job{}).
-		Post(url)
+		Post(c.getEndpoint("jobs", "/", url.Values{}))
 
 	if err != nil {
 		return 0, fmt.Errorf("Error while sending Job submission: '%s'", err)
 	}
 
 	// check HTTP error code (expected: 201 Created)
-	if jobRes.StatusCode() != 201 {
-		return 0, fmt.Errorf("The server returned an error (code: %d) after sending Job submission: '%s'", jobRes.StatusCode(), jobRes.Status())
+	if req.StatusCode() != 201 {
+		return 0, fmt.Errorf("The server returned an error (code: %d) after sending Job submission: '%s'", req.StatusCode(), req.Status())
 	}
 
 	// unmarshal result
-	job, ok := jobRes.Result().(*Job)
+	job, ok := req.Result().(*Job)
 	if !ok {
 		return 0, fmt.Errorf("Error in the response of the Job submission (unexpected type)")
 	}
 
-	log.Infof("Job submitted successfully (id: '%v')", job.UID)
 	return job.UID, nil
 }
 
 // GetJob get the job from its id
 func (c *Client) GetJob(jobID int) (*Job, error) {
-	// create url for API call
-	urlJob := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kAPIFrontend, c.Site, jobID)
-
 	// send request
-	jobRes, err := c.Request().
+	req, err := c.getRequest().
 		SetResult(&Job{}).
-		Get(urlJob)
+		Get(c.getEndpoint("jobs", fmt.Sprintf("/%v", jobID), url.Values{}))
 
 	if err != nil {
 		return nil, fmt.Errorf("Error while retrieving Job informations")
 	}
 
 	// check HTTP error code (expected: 200 OK)
-	if jobRes.StatusCode() != 200 {
-		return nil, fmt.Errorf("The server returned an error (code: %d) after requesting Job informations: '%s'", jobRes.StatusCode(), jobRes.Status())
+	if req.StatusCode() != 200 {
+		return nil, fmt.Errorf("The server returned an error (code: %d) after requesting Job informations: '%s'", req.StatusCode(), req.Status())
 	}
 
 	// unmarshal result
-	job, ok := jobRes.Result().(*Job)
+	job, ok := req.Result().(*Job)
 	if !ok {
 		return nil, fmt.Errorf("Error in the Job retrieving (unexpected type)")
 	}
 
-	sort.Strings(job.Types)
-	sort.Strings(job.Nodes)
 	return job, nil
-}
-
-// GetJobState returns the current state of the job
-func (c *Client) GetJobState(jobID int) (string, error) {
-	// get job from api
-	job, err := c.GetJob(jobID)
-	if err != nil {
-		return "", err
-	}
-
-	return job.State, nil
 }
 
 // KillJob ask for deletion of a job
 func (c *Client) KillJob(jobID int) error {
-	// create url for API call
-	url := fmt.Sprintf("%s/sites/%s/jobs/%v", G5kAPIFrontend, c.Site, jobID)
-
 	// send delete request
-	delRes, err := c.Request().Delete(url)
+	req, err := c.getRequest().Delete(c.getEndpoint("jobs", fmt.Sprintf("/%v", jobID), url.Values{}))
 	if err != nil {
 		return fmt.Errorf("Error while killing job: '%s'", err)
 	}
 
-	// check HTTP error code (expected: 202 Accepted)
-	if delRes.StatusCode() != 202 {
-		return fmt.Errorf("The server returned an error (code: %d) after job killing request: '%s'", delRes.StatusCode(), delRes.Status())
+	// check HTTP error code (202 when accepted or 400 in case the job have already been killed)
+	if req.StatusCode() != 202 && req.StatusCode() != 400 {
+		return fmt.Errorf("The server returned an error (code: %d) after job killing request: '%s'", req.StatusCode(), req.Status())
 	}
 
 	return nil

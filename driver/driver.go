@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"net"
+	"net/url"
 
 	"github.com/docker/machine/libmachine/mcnutils"
 
@@ -30,13 +31,13 @@ type Driver struct {
 	G5kWalltime                        string
 	G5kImage                           string
 	G5kResourceProperties              string
-	G5kSkipVpnChecks                   bool
 	G5kReuseRefEnvironment             bool
 	G5kJobQueue                        string
 	G5kJobStartTime                    string
 	DriverSSHPublicKey                 string
 	ExternalSSHPublicKeys              []string
 	G5kKeepAllocatedResourceAtDeletion bool
+	G5kNodeHostname                    string
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -99,12 +100,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 
 		mcnflag.BoolFlag{
-			EnvVar: "G5K_SKIP_VPN_CHECKS",
-			Name:   "g5k-skip-vpn-checks",
-			Usage:  "Skip the VPN client connection and DNS configuration checks (for specific use case only, you should not enable this flag in normal use)",
-		},
-
-		mcnflag.BoolFlag{
 			EnvVar: "G5K_REUSE_REF_ENVIRONMENT",
 			Name:   "g5k-reuse-ref-environment",
 			Usage:  "Reuse the Grid'5000 reference environment instead of re-deploying the node (it saves a lot of time)",
@@ -129,6 +124,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Use a resource reservation (need to be a job of 'deploy' type and in the 'running' state)",
 		},
 
+		mcnflag.StringFlag{
+			EnvVar: "G5K_SELECT_NODE_FROM_RESERVATION",
+			Name:   "g5k-select-node-from-reservation",
+			Usage:  "Hostname of the node to use from the reservation. (SHOULD be in the allocated node(s) of the resource reservation)",
+		},
+
 		mcnflag.StringSliceFlag{
 			EnvVar: "G5K_EXTERNAL_SSH_PUBLIC_KEYS",
 			Name:   "g5k-external-ssh-public-keys",
@@ -146,64 +147,78 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 
 // SetConfigFromFlags configure the driver from the command line arguments
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
+	d.BaseDriver.SetSwarmConfigFromFlags(opts)
 	d.G5kUsername = opts.String("g5k-username")
 	d.G5kPassword = opts.String("g5k-password")
 	d.G5kSite = opts.String("g5k-site")
 	d.G5kWalltime = opts.String("g5k-walltime")
 	d.G5kImage = opts.String("g5k-image")
 	d.G5kResourceProperties = opts.String("g5k-resource-properties")
-	d.G5kSkipVpnChecks = opts.Bool("g5k-skip-vpn-checks")
 	d.G5kReuseRefEnvironment = opts.Bool("g5k-reuse-ref-environment")
 	d.G5kJobQueue = opts.String("g5k-job-queue")
 	d.G5kJobStartTime = opts.String("g5k-make-resource-reservation")
 	d.G5kJobID = opts.Int("g5k-use-resource-reservation")
 	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
 	d.G5kKeepAllocatedResourceAtDeletion = opts.Bool("g5k-keep-resource-at-deletion")
+	d.G5kNodeHostname = opts.String("g5k-select-node-from-reservation")
 
-	// Docker Swarm
-	d.BaseDriver.SetSwarmConfigFromFlags(opts)
-
-	// username is required
 	if d.G5kUsername == "" {
 		return fmt.Errorf("You must give your Grid5000 account username")
 	}
-
-	// password is required
 	if d.G5kPassword == "" {
 		return fmt.Errorf("You must give your Grid5000 account password")
 	}
-
-	// site is required
 	if d.G5kSite == "" {
 		return fmt.Errorf("You must give the site you want to reserve the resources on")
 	}
 
-	// contradictory use of parameters: providing an image to deploy while trying to reuse the reference environment
-	if d.G5kReuseRefEnvironment && d.G5kImage != g5kReferenceEnvironmentName {
-		return fmt.Errorf("You have to choose between reusing the reference environment or redeploying the node with another image")
-	}
-
-	// we cannot reuse the reference environment when the job is of type 'deploy'
-	if d.G5kReuseRefEnvironment && (d.G5kJobStartTime != "" || d.G5kJobID != 0) {
-		return fmt.Errorf("Reusing the Grid'5000 reference environment on a resource reservation is not supported")
-	}
-
-	// warn if user disable VPN check
-	if d.G5kSkipVpnChecks {
-		log.Warn("VPN client connection and DNS configuration checks are disabled")
-	}
-
-	// we cannot use the besteffort queue with docker-machine
+	// The besteffort queue is only for interruptible jobs and cannot be used in the case of Docker machine
 	if d.G5kJobQueue == "besteffort" {
 		return fmt.Errorf("The besteffort queue is not supported")
+	}
+
+	if d.G5kReuseRefEnvironment {
+		// Contradictory use of parameters: providing an image to deploy while trying to reuse the reference environment
+		if d.G5kImage != g5kReferenceEnvironmentName {
+			return fmt.Errorf("You have to choose between reusing the reference environment or redeploying the node with another image")
+		}
+
+		// Reusing the reference environment is only possible when the job is NOT of type 'deploy'
+		if d.G5kJobStartTime != "" || d.G5kJobID != 0 {
+			return fmt.Errorf("Reusing the Grid'5000 reference environment on a resource reservation is not supported")
+		}
+	}
+
+	if d.G5kNodeHostname != "" {
+		// Node selection flag can only be used on a resource reservation because there will be only one node in a submission.
+		if d.G5kJobID == 0 {
+			return fmt.Errorf("You cannot select a node when doing a job submission")
+		}
 	}
 
 	return nil
 }
 
-// GetIP returns the ip
+// GetIP returns an IP or hostname that this host is available at
 func (d *Driver) GetIP() (string, error) {
-	return d.BaseDriver.GetIP()
+	if d.IPAddress == "" {
+		if d.G5kNodeHostname == "" {
+			job, err := d.G5kAPI.GetJob(d.G5kJobID)
+			if err != nil {
+				return "", err
+			}
+
+			if len(job.Nodes) == 0 {
+				return "", fmt.Errorf("Failed to resolve IP address: The node have not been allocated")
+			}
+
+			d.G5kNodeHostname = job.Nodes[0]
+		}
+
+		d.IPAddress = d.G5kNodeHostname
+	}
+
+	return d.IPAddress, nil
 }
 
 // GetMachineName returns the machine name
@@ -211,76 +226,98 @@ func (d *Driver) GetMachineName() string {
 	return d.BaseDriver.GetMachineName()
 }
 
-// GetSSHHostname returns the machine hostname
+// GetSSHHostname returns hostname for use with ssh
 func (d *Driver) GetSSHHostname() (string, error) {
 	return d.GetIP()
 }
 
-// GetSSHKeyPath returns the ssh private key path
+// GetSSHKeyPath returns key path for use with ssh
 func (d *Driver) GetSSHKeyPath() string {
 	return d.BaseDriver.GetSSHKeyPath()
 }
 
-// GetSSHPort returns the ssh port
+// GetSSHPort returns port for use with ssh
 func (d *Driver) GetSSHPort() (int, error) {
 	return d.BaseDriver.GetSSHPort()
 }
 
-// GetSSHUsername returns the ssh user name
+// GetSSHUsername returns username for use with ssh
 func (d *Driver) GetSSHUsername() string {
 	return d.BaseDriver.GetSSHUsername()
 }
 
-// GetURL returns the URL of the docker daemon
+// GetURL returns a Docker compatible host URL for connecting to this host
 func (d *Driver) GetURL() (string, error) {
-	// get IP address
+	if err := drivers.MustBeRunning(d); err != nil {
+		return "", err
+	}
+
 	ip, err := d.GetIP()
 	if err != nil {
 		return "", err
 	}
 
-	// format URL 'tcp://host:2376'
-	return fmt.Sprintf("tcp://%s", net.JoinHostPort(ip, "2376")), nil
-}
-
-// GetState returns the state of the node
-func (d *Driver) GetState() (state.State, error) {
-	// get job state from API
-	status, err := d.G5kAPI.GetJobState(d.G5kJobID)
-	if err != nil {
-		return state.Error, err
+	u := url.URL{
+		Scheme: "tcp",
+		Host:   net.JoinHostPort(ip, "2376"),
 	}
 
-	switch status {
+	return u.String(), nil
+}
+
+// GetState returns the state that the host is in (running, stopped, etc)
+func (d *Driver) GetState() (state.State, error) {
+	job, err := d.G5kAPI.GetJob(d.G5kJobID)
+	if err != nil {
+		return state.None, err
+	}
+
+	// filter job status where the node is not available
+	switch job.State {
 	case "waiting":
 		return state.Starting, nil
 	case "launching":
 		return state.Starting, nil
-	case "running":
-		return state.Running, nil
 	case "hold":
 		return state.Stopped, nil
 	case "error":
 		return state.Error, nil
 	case "terminated":
 		return state.Stopped, nil
+	case "running":
+		// noop, needs further checks
 	default:
-		return state.None, nil
+		return state.None, fmt.Errorf("The job is in an unexpected state: %s", job.State)
 	}
+
+	// Try to connect to the site frontend ssh server before continuing.
+	// This prevent to wrongly report the machine as Stopped when the user is disconnected from the VPN.
+	if err := d.checkVpnConfiguration(); err != nil {
+		return state.None, err
+	}
+
+	ip, err := d.GetIP()
+	if err != nil {
+		return state.None, err
+	}
+
+	// Try to connect to the node ssh server
+	if err := CheckSSHConnection(ip); err != nil {
+		return state.Stopped, nil
+	}
+
+	return state.Running, nil
 }
 
 // PreCreateCheck check parameters and submit the job to Grid5000
 func (d *Driver) PreCreateCheck() error {
-	// prepare the driver store dir
 	if err := d.prepareDriverStoreDirectory(); err != nil {
 		return err
 	}
 
-	// check VPN connection if enabled
-	if !d.G5kSkipVpnChecks {
-		if err := d.checkVpnConnection(); err != nil {
-			return err
-		}
+	// check if the user is connected to the Grid'5000 VPN and its configuration is valid
+	if err := d.checkVpnConfiguration(); err != nil {
+		return err
 	}
 
 	// create API client
@@ -317,24 +354,16 @@ func (d *Driver) PreCreateCheck() error {
 		}
 	}
 
-	// wait for job to be in 'running' state
-	if err := d.waitUntilJobIsReady(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // Create wait for the job to be running, deploy the OS image and copy the ssh keys
 func (d *Driver) Create() error {
-	// get node hostname from API
-	job, err := d.G5kAPI.GetJob(d.G5kJobID)
-	if err != nil {
+	// wait for job to be in 'running' state
+	if err := d.waitUntilJobIsReady(); err != nil {
 		return err
 	}
-	d.BaseDriver.IPAddress = job.Nodes[0]
 
-	// deploy OS image to the node
 	if err := d.deployImageToNode(); err != nil {
 		return err
 	}
@@ -354,29 +383,29 @@ func (d *Driver) Create() error {
 func (d *Driver) Remove() error {
 	// keep the resource allocated if the user asked for it
 	if !d.G5kKeepAllocatedResourceAtDeletion {
-		log.Infof("Killing job... (id: '%d')", d.G5kJobID)
-		d.G5kAPI.KillJob(d.G5kJobID)
+		log.Infof("Deallocating resource... (Job ID: '%d')", d.G5kJobID)
+		return d.G5kAPI.KillJob(d.G5kJobID)
 	}
 
 	return nil
 }
 
-// Kill don't do anything
+// Kill perform a hard power-off on the node
 func (d *Driver) Kill() error {
-	return fmt.Errorf("The 'kill' operation is not supported on Grid'5000")
+	return d.changeNodePowerStatus("off", "hard")
 }
 
-// Start don't do anything
+// Start perform a soft power-on on the node
 func (d *Driver) Start() error {
-	return fmt.Errorf("The 'start' operation is not supported on Grid'5000")
+	return d.changeNodePowerStatus("on", "soft")
 }
 
-// Stop don't do anything
+// Stop perform a soft power-off on the node
 func (d *Driver) Stop() error {
-	return fmt.Errorf("The 'stop' operation is not supported on Grid'5000")
+	return d.changeNodePowerStatus("off", "soft")
 }
 
-// Restart don't do anything
+// Restart perform a soft reboot on the node
 func (d *Driver) Restart() error {
-	return fmt.Errorf("The 'restart' operation is not supported on Grid'5000")
+	return d.rebootNode("soft")
 }

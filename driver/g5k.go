@@ -1,100 +1,23 @@
 package driver
 
 import (
+	"encoding/base64"
 	"fmt"
-	"io/ioutil"
-	"net"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
+	"regexp"
 	"time"
-
-	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/Spirals-Team/docker-machine-driver-g5k/api"
 	"github.com/docker/machine/libmachine/log"
-	"github.com/docker/machine/libmachine/ssh"
 )
 
-// checkVpnConnection check if the VPN is connected and properly configured (DNS) by trying to connect to the site frontend SSH server using its hostname
-func (d *Driver) checkVpnConnection() error {
-	// construct site frontend hostname
-	frontend := fmt.Sprintf("frontend.%s.grid5000.fr:22", d.G5kSite)
-
-	// try to connect to the frontend SSH server
-	sshConfig := &gossh.ClientConfig{}
-	_, err := gossh.Dial("tcp", frontend, sshConfig)
-
-	// we need to check if the error is network-related because the SSH Dial will always return an error due to the Authentication being not configured
-	if _, ok := err.(*net.OpError); ok {
+func (d *Driver) checkVpnConfiguration() error {
+	// Check VPN connection by trying to connect to the ssh server of the frontend of the current site.
+	// This allows to test if the user use the VPN and the Grid'5000 DNS servers.
+	if err := CheckSSHConnection(fmt.Sprintf("frontend.%s.grid5000.fr", d.G5kSite)); err != nil {
 		return fmt.Errorf("Connection to frontend of '%s' site failed. Please check if the site is not undergoing maintenance and your VPN client is connected and properly configured (see driver documentation for more information)", d.G5kSite)
 	}
 
 	return nil
-}
-
-// resolveDriverStorePath returns the store path of the driver
-func (d *Driver) resolveDriverStorePath(file string) string {
-	return filepath.Join(d.StorePath, "g5k", file)
-}
-
-// prepareDriverStoreDirectory initialize the driver storage directory
-func (d *Driver) prepareDriverStoreDirectory() error {
-	driverStoreBasePath := d.resolveDriverStorePath(".")
-
-	// create the directory if needed
-	if _, err := os.Stat(driverStoreBasePath); os.IsNotExist(err) {
-		if err := os.Mkdir(driverStoreBasePath, 0700); err != nil {
-			return fmt.Errorf("Failed to create the driver storage directory: %s", err)
-		}
-	}
-
-	return nil
-}
-
-// getDriverSSHKeyPath returns the path leading to the driver SSH private key (append .pub to get the public key)
-func (d *Driver) getDriverSSHKeyPath() string {
-	return d.resolveDriverStorePath("id_rsa")
-}
-
-// loadDriverSSHPublicKey load the driver SSH Public key from the storage dir, the key will be created if needed
-func (d *Driver) loadDriverSSHPublicKey() error {
-	driverSSHKeyPath := d.getDriverSSHKeyPath()
-
-	// generate the driver SSH key pair if needed
-	if _, err := os.Stat(driverSSHKeyPath); os.IsNotExist(err) {
-		if err := ssh.GenerateSSHKey(driverSSHKeyPath); err != nil {
-			return fmt.Errorf("Failed to generate the driver ssh key: %s", err)
-		}
-	}
-
-	// load the public key from file
-	sshPublicKey, err := ioutil.ReadFile(d.getDriverSSHKeyPath() + ".pub")
-	if err != nil {
-		return fmt.Errorf("Failed to load the driver ssh public key: %s", err)
-	}
-
-	// store the public key for future use
-	d.DriverSSHPublicKey = strings.TrimSpace(string(sshPublicKey))
-	return nil
-}
-
-// generateSSHAuthorizedKeys generate the SSH AuthorizedKeys composed of the driver and user defined key(s)
-func (d *Driver) generateSSHAuthorizedKeys() string {
-	var authorizedKeysEntries []string
-
-	// add driver key
-	authorizedKeysEntries = append(authorizedKeysEntries, "# docker-machine driver g5k - driver key")
-	authorizedKeysEntries = append(authorizedKeysEntries, d.DriverSSHPublicKey)
-
-	// add external key(s)
-	for index, externalPubKey := range d.ExternalSSHPublicKeys {
-		authorizedKeysEntries = append(authorizedKeysEntries, fmt.Sprintf("# docker-machine driver g5k - additional key %d", index))
-		authorizedKeysEntries = append(authorizedKeysEntries, strings.TrimSpace(externalPubKey))
-	}
-
-	return strings.Join(authorizedKeysEntries, "\n") + "\n"
 }
 
 // waitUntilJobIsReady wait until the job reach the 'running' state (no timeout)
@@ -136,8 +59,10 @@ func (d *Driver) makeJobSubmission() error {
 	if d.G5kReuseRefEnvironment {
 		// remove the 'deploy' job type because we will not deploy the machine
 		jobTypes = []string{}
+		// convert the ssh authorized_keys to be added in base64
+		sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
-		jobCommand = `sudo-g5k && echo -n "` + d.generateSSHAuthorizedKeys() + `" |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`
+		jobCommand = fmt.Sprint(`sudo-g5k && printf ` + sshAuthorizedKeysBase64 + ` |base64 -d |sudo tee -a /root/.ssh/authorized_keys >/dev/null && sleep 365d`)
 	}
 
 	// submit new Job request
@@ -152,6 +77,7 @@ func (d *Driver) makeJobSubmission() error {
 		return fmt.Errorf("Error when submitting new job: %s", err.Error())
 	}
 
+	log.Infof("Job submission have been successfully submitted. (job id: %d)", jobID)
 	d.G5kJobID = jobID
 	return nil
 }
@@ -174,46 +100,50 @@ func (d *Driver) makeJobReservation() error {
 		return fmt.Errorf("Error when submitting new job: %s", err.Error())
 	}
 
+	log.Infof("Job reservation have been successfully submitted. (job id: %d)", jobID)
 	d.G5kJobID = jobID
 	return nil
 }
 
-// waitUntilDeploymentIsFinished will wait until the deployment reach the 'terminated' state (no timeout)
-func (d *Driver) waitUntilDeploymentIsFinished(deploymentID string) error {
-	log.Info("Waiting for deployment to finish, it will take a few minutes...")
+// waitUntilWorkflowIsDone will wait until the workflow for the given operation is done (successfully or not) for the node
+func (d *Driver) waitUntilWorkflowIsDone(operation string, wid string, node string) error {
+	log.Infof("Waiting for workflow of '%s' operation to finish, it will take a few minutes...", operation)
 
-	// refresh deployment status
-	for deployment, err := d.G5kAPI.GetDeployment(deploymentID); deployment.Status != "terminated"; deployment, err = d.G5kAPI.GetDeployment(deploymentID) {
-		// check if GetDeployment returned an error
+	for {
+		// get operation workflow
+		workflow, err := d.G5kAPI.GetOperationWorkflow(operation, wid)
 		if err != nil {
 			return err
 		}
 
-		// stop if the deployment is in 'canceled' or 'error' state
-		if deployment.Status == "canceled" || deployment.Status == "error" {
-			return fmt.Errorf("Can't wait for a deployment in '%s' state", deployment.Status)
+		// check if the workflow is done for the node
+		if ArrayContainsString(workflow.Nodes["ok"], node) {
+			break
 		}
 
-		// wait 10 seconds before making another API call
-		time.Sleep(10 * time.Second)
+		// check if the workflow failed for the node
+		if ArrayContainsString(workflow.Nodes["ko"], node) {
+			return fmt.Errorf("Workflow for '%s' operation failed for the '%s' node", operation, node)
+		}
+
+		// check if the workflow is processing the node
+		if ArrayContainsString(workflow.Nodes["processing"], node) {
+			log.Debugf("Workflow for '%s' operation is in processing state for the '%s' node", operation, node)
+		}
+
+		// wait before making another API call
+		time.Sleep(7 * time.Second)
 	}
 
-	log.Info("Deployment finished successfully")
+	log.Infof("Workflow for '%s' operation finished successfully for the '%s' node", operation, node)
 	return nil
-}
-
-// handleDeploymentError deallocate the resources when the deployment fail
-func (d *Driver) handleDeploymentError() {
-	// if deployment fail, we can't recover from this error, so we kill the job
-	log.Infof("Unrecoverable error in deployment, killing job ID '%d'...", d.G5kJobID)
-	d.G5kAPI.KillJob(d.G5kJobID)
 }
 
 // deployImageToNode start the deployment of an OS image to a node
 func (d *Driver) deployImageToNode() error {
 	// if the user want to reuse Grid'5000 reference environment
 	if d.G5kReuseRefEnvironment {
-		log.Infof("Skipping host deployment and reusing Grid'5000 standard environment")
+		log.Infof("Skipping image deployment and reusing Grid'5000 standard environment")
 		return nil
 	}
 
@@ -224,31 +154,146 @@ func (d *Driver) deployImageToNode() error {
 	}
 
 	// check job type before deploying
-	if sort.SearchStrings(job.Types, "deploy") != 0 {
+	if !ArrayContainsString(job.Types, "deploy") {
 		return fmt.Errorf("The job (id: %d) needs to have the type 'deploy'", d.G5kJobID)
 	}
 
-	// check if there is only one node for this reservation
-	if len(job.Nodes) != 1 {
-		return fmt.Errorf("The job (id: '%d') needs to have only one node instead of %d", d.G5kJobID, len(job.Nodes))
+	// get the hostname of the node
+	node, err := d.GetIP()
+	if err != nil {
+		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
 	}
 
-	// deploy environment
-	deploymentID, err := d.G5kAPI.SubmitDeployment(api.DeploymentRequest{
-		Nodes:       job.Nodes,
-		Environment: d.G5kImage,
-		Key:         d.generateSSHAuthorizedKeys(),
+	// check if the node is allocated to the job
+	if !ArrayContainsString(job.Nodes, node) {
+		return fmt.Errorf("The node '%s' is not allocated to the job (id: %d)", node, d.G5kJobID)
+	}
+
+	log.Infof("Submitting a new deployment for node '%s'... (image: '%s')", node, d.G5kImage)
+
+	// convert the ssh authorized_keys to be added in base64
+	sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
+
+	// submit deployment operation to kadeploy
+	op, err := d.G5kAPI.SubmitDeployment(api.DeploymentOperation{
+		Nodes: []string{node},
+		Environment: api.DeploymentOperationEnvironment{
+			Kind: "database",
+			Name: d.G5kImage,
+		},
+		CustomOperations: map[string]map[string]map[string][]api.DeploymentOperationCustomOperation{
+			"BroadcastEnvKascade": {
+				"manage_user_post_install": {
+					"post-ops": {
+						api.DeploymentOperationCustomOperation{
+							Name:    "docker_machine_driver_ssh_root_pub_keys",
+							Action:  "exec",
+							Command: fmt.Sprint(`printf ` + sshAuthorizedKeysBase64 + ` |base64 -d >> $KADEPLOY_ENV_EXTRACTION_DIR/root/.ssh/authorized_keys`),
+						},
+					},
+				},
+			},
+		},
 	})
+
 	if err != nil {
-		d.handleDeploymentError()
 		return fmt.Errorf("Error when submitting new deployment: %s", err.Error())
 	}
 
+	log.Infof("Deployment operation for '%s' node have been submitted successfully (workflow id: '%s')", node, op.WID)
+
 	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
-	if err = d.waitUntilDeploymentIsFinished(deploymentID); err != nil {
-		d.handleDeploymentError()
+	if err = d.waitUntilWorkflowIsDone("deployment", op.WID, node); err != nil {
 		return fmt.Errorf("Error when waiting for deployment to finish: %s", err.Error())
 	}
 
 	return nil
+}
+
+// getNodePowerState returns the power status of the node by querying its baseboard management controller (BMC)
+func (d *Driver) getNodePowerState() (string, error) {
+	node, err := d.GetIP()
+	if err != nil {
+		return "", fmt.Errorf("Failed to get the node hostname: %s", err.Error())
+	}
+
+	op, err := d.G5kAPI.RequestPowerStatus(node)
+	if err != nil {
+		return "", fmt.Errorf("Failed to request power status: %s", err.Error())
+	}
+
+	if err := d.waitUntilWorkflowIsDone("power", op.WID, node); err != nil {
+		return "", err
+	}
+
+	// get nodes states for the workflow
+	states, err := d.G5kAPI.GetOperationStates("power", op.WID)
+	if err != nil {
+		return "", err
+	}
+
+	// get the state of the current node
+	state, ok := (*states)[node]
+	if !ok {
+		return "", fmt.Errorf("Failed to retrieve the workflow state of the power status operation")
+	}
+
+	// extract the BMC power status from the state out attribute
+	re := regexp.MustCompile(`-bmc: (on|off)$`)
+	matches := re.FindStringSubmatch(state.Out)
+	if matches == nil {
+		return "", fmt.Errorf("The BMC status in the workflow state is invalid: %s", state.Out)
+	}
+
+	return matches[1], nil
+}
+
+// changeNodePowerStatus change the power status (on/off) of the node with the given level (soft/hard)
+func (d *Driver) changeNodePowerStatus(status string, level string) error {
+	if d.G5kReuseRefEnvironment {
+		return fmt.Errorf("You can't power-%s (%s) the node when reusing the Grid'5000 environment", status, level)
+	}
+
+	node, err := d.GetIP()
+	if err != nil {
+		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
+	}
+
+	op, err := d.G5kAPI.SubmitPowerOperation(api.PowerOperation{
+		Nodes:  []string{node},
+		Status: status,
+		Level:  level,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Power-%s (%s) operation for '%s' node have been submitted successfully (workflow id: '%s')", status, level, node, op.WID)
+	return d.waitUntilWorkflowIsDone("power", op.WID, node)
+}
+
+// rebootNode reboot the node with the given level (soft/hard)
+func (d *Driver) rebootNode(level string) error {
+	if d.G5kReuseRefEnvironment {
+		return fmt.Errorf("You can't reboot (%s) the node when reusing the Grid'5000 environment", level)
+	}
+
+	node, err := d.GetIP()
+	if err != nil {
+		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
+	}
+
+	op, err := d.G5kAPI.SubmitRebootOperation(api.RebootOperation{
+		Kind:  "simple",
+		Nodes: []string{node},
+		Level: level,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Reboot (%s) operation for '%s' node have been submitted successfully (workflow id: '%s')", level, node, op.WID)
+	return d.waitUntilWorkflowIsDone("reboot", op.WID, node)
 }
