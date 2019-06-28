@@ -74,9 +74,9 @@ jobs:
       - run:
           name: generate md5, sha256 and blake2 digest files
           command: |
-            (cd src && md5sum docker-machine-driver-g5k-* >MD5SUMS)
-            (cd src && sha256sum docker-machine-driver-g5k-* >SHA256SUMS)
-            (cd src && b2sum docker-machine-driver-g5k-* >BLAKE2SUMS)
+            (cd bin && md5sum docker-machine-driver-g5k-* >MD5SUMS)
+            (cd bin && sha256sum docker-machine-driver-g5k-* >SHA256SUMS)
+            (cd bin && b2sum docker-machine-driver-g5k-* >BLAKE2SUMS)
 
       - run:
           name: upload binaries and digest files to GitHub releases
