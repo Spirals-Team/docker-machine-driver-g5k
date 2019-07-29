@@ -28,7 +28,7 @@ type Job struct {
 // SubmitJob submit a new job on g5k api and return the job id
 func (c *Client) SubmitJob(jobReq JobRequest) (int, error) {
 	// send job request
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(jobReq).
 		SetResult(&Job{}).
@@ -55,7 +55,7 @@ func (c *Client) SubmitJob(jobReq JobRequest) (int, error) {
 // GetJob get the job from its id
 func (c *Client) GetJob(jobID int) (*Job, error) {
 	// send request
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetResult(&Job{}).
 		Get(c.getEndpoint("jobs", fmt.Sprintf("/%v", jobID), url.Values{}))
 
@@ -80,7 +80,7 @@ func (c *Client) GetJob(jobID int) (*Job, error) {
 // KillJob ask for deletion of a job
 func (c *Client) KillJob(jobID int) error {
 	// send delete request
-	req, err := c.getRequest().Delete(c.getEndpoint("jobs", fmt.Sprintf("/%v", jobID), url.Values{}))
+	req, err := c.caller.R().Delete(c.getEndpoint("jobs", fmt.Sprintf("/%v", jobID), url.Values{}))
 	if err != nil {
 		return fmt.Errorf("Error while killing job: '%s'", err)
 	}

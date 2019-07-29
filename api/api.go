@@ -14,39 +14,28 @@ const (
 
 // Client is a client to the Grid'5000 REST API
 type Client struct {
-	Username string
-	Password string
-	Site     string
+	caller  *resty.Client
+	baseURL url.URL
 }
 
 // NewClient returns a new configured Grid'5000 API client
 func NewClient(username, password, site string) *Client {
-	return &Client{
-		Username: username,
-		Password: password,
-		Site:     site,
-	}
-}
-
-// getRequest returns a configured resty request
-func (c *Client) getRequest() *resty.Request {
-	return resty.R().
+	caller := resty.New().
 		SetHeader("Accept", "application/json").
-		SetBasicAuth(c.Username, c.Password)
-}
+		SetBasicAuth(username, password)
 
-// getBaseURL returns the Grid'5000 API base url
-func (c *Client) getBaseURL() *url.URL {
-	return &url.URL{
+	baseURL := url.URL{
 		Scheme: "https",
 		Host:   g5kAPIhostname,
-		Path:   gopath.Join(g5kAPIversion, "sites", c.Site),
+		Path:   gopath.Join(g5kAPIversion, "sites", site),
 	}
+
+	return &Client{caller, baseURL}
 }
 
 // getEndpoint construct and returns the API endpoint for the given api name and path
 func (c *Client) getEndpoint(api string, path string, params url.Values) string {
-	url := c.getBaseURL()
+	url := c.baseURL
 	url.Path = gopath.Join(url.Path, api, path)
 	url.RawQuery = params.Encode()
 	return url.String()

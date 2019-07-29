@@ -65,7 +65,7 @@ type OperationStates map[string]struct {
 // SubmitPowerOperation submit a power operation to the Kadeploy3 API
 func (c *Client) SubmitPowerOperation(operation PowerOperation) (*OperationResponse, error) {
 	// send power operation to kadeploy3 API
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetBody(operation).
 		SetResult(&OperationResponse{}).
 		Put(c.getEndpoint("internal/kadeployapi", "/power", url.Values{}))
@@ -91,7 +91,7 @@ func (c *Client) SubmitPowerOperation(operation PowerOperation) (*OperationRespo
 // RequestPowerStatus request the power status of the node to the Kadeploy3 API
 func (c *Client) RequestPowerStatus(node string) (*OperationResponse, error) {
 	// send power operation to kadeploy3 API
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetResult(&OperationResponse{}).
 		Get(c.getEndpoint("internal/kadeployapi", "/power", url.Values{"nodes": []string{node}}))
 
@@ -116,7 +116,7 @@ func (c *Client) RequestPowerStatus(node string) (*OperationResponse, error) {
 // SubmitRebootOperation submit a reboot operation to the Kadeploy3 API
 func (c *Client) SubmitRebootOperation(operation RebootOperation) (*OperationResponse, error) {
 	// send reboot operation to kadeploy3 API
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetBody(operation).
 		SetResult(&OperationResponse{}).
 		Post(c.getEndpoint("internal/kadeployapi", "/reboot", url.Values{}))
@@ -142,7 +142,7 @@ func (c *Client) SubmitRebootOperation(operation RebootOperation) (*OperationRes
 // SubmitDeployment submits a new deployment request to g5k api
 func (c *Client) SubmitDeployment(operation DeploymentOperation) (*OperationResponse, error) {
 	// send deployment request to kadeploy3 API
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetBody(operation).
 		SetResult(&OperationResponse{}).
 		Post(c.getEndpoint("deployment", "/", url.Values{}))
@@ -168,7 +168,7 @@ func (c *Client) SubmitDeployment(operation DeploymentOperation) (*OperationResp
 // GetOperationWorkflow fetch and return an operation workflow from its ID
 func (c *Client) GetOperationWorkflow(operation string, wid string) (*OperationWorkflow, error) {
 	// get workflow fron kadeploy3 API
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetResult(&OperationWorkflow{}).
 		Get(c.getEndpoint("internal/kadeployapi", fmt.Sprintf("/%s/%s", operation, wid), url.Values{}))
 
@@ -193,7 +193,7 @@ func (c *Client) GetOperationWorkflow(operation string, wid string) (*OperationW
 // GetOperationStates fetch and return the states of an operation workflow from its ID
 func (c *Client) GetOperationStates(operation string, wid string) (*OperationStates, error) {
 	// get workflow fron kadeploy3 API
-	req, err := c.getRequest().
+	req, err := c.caller.R().
 		SetResult(&OperationStates{}).
 		Get(c.getEndpoint("internal/kadeployapi", fmt.Sprintf("/%s/%s/state", operation, wid), url.Values{}))
 
