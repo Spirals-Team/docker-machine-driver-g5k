@@ -131,13 +131,13 @@ docker-machine create -d g5k \
 test-node
 ```
 
-An example deploying the `debian9-x64-min` environment image on the node:
+An example deploying the Ubuntu 18.04 (bionic) (`ubuntu1804-x64-min`) environment image on the node:
 ```bash
 docker-machine create -d g5k \
 --g5k-username "user" \
 --g5k-password "********" \
 --g5k-site "lille" \
---g5k-image "debian9-x64-min" \
+--g5k-image "ubuntu1804-x64-min" \
 test-node
 ```
 
