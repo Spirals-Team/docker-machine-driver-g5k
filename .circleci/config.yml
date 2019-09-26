@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.13
 
     working_directory: /go/src/github.com/Spirals-Team/docker-machine-driver-g5k
 
