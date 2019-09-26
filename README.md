@@ -67,7 +67,7 @@ export PATH=$PATH:$GOPATH/bin
 | `--g5k-password`                     | `G5K_PASSWORD`                     |                       |
 | `--g5k-site`                         | `G5K_SITE`                         |                       |
 | `--g5k-walltime`                     | `G5K_WALLTIME`                     | "1:00:00"             |
-| `--g5k-image`                        | `G5K_IMAGE`                        | "debian9-x64-std"     |
+| `--g5k-image`                        | `G5K_IMAGE`                        | "debian10-x64-std"    |
 | `--g5k-resource-properties`          | `G5K_RESOURCE_PROPERTIES`          |                       |
 | `--g5k-make-resource-reservation`    | `G5K_MAKE_RESOURCE_RESERVATION`    |                       |
 | `--g5k-use-resource-reservation`     | `G5K_USE_RESOURCE_RESERVATION`     |                       |
@@ -104,7 +104,7 @@ This can be used as safeguard to protect from deallocating the resource when you
 More information about the resources reservation are available on the [Grid'5000 Wiki](https://www.grid5000.fr/w/Grid5000:UsagePolicy#Resources_reservation).
 
 #### Grid'5000 reference environment reuse
-You can reuse the Grid'5000 reference environment (debian 9, stretch) instead of redeploying the machine.  
+You can reuse the Grid'5000 reference environment (debian 10, buster) instead of redeploying the machine.  
 Doing so will skip the node deployment phase and will save a lot of time at the machine creation.  
 If you don't need a tweaked environment or rely on Grid'5000 services (NFS for example), you should use this option.  
 **Please note that, in this mode, if you reboot the machine by any mean, the reserved resource will be released and the node will be redeployed with the reference environment.**  
