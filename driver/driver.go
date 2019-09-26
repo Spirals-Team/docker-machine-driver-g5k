@@ -17,7 +17,7 @@ import (
 )
 
 // g5kReferenceEnvironment is the name of the reference environment automatically deployed on the node by Grid'5000
-const g5kReferenceEnvironmentName string = "debian9-x64-std"
+const g5kReferenceEnvironmentName string = "debian10-x64-std"
 
 // Driver parameters
 type Driver struct {
