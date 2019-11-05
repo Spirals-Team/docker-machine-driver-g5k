@@ -25,7 +25,7 @@ func (d *Driver) waitUntilJobIsReady() error {
 	log.Info("Waiting for job to run...")
 
 	// refresh job state
-	for job, err := d.G5kAPI.GetJob(d.G5kJobID); job.State != "running"; job, err = d.G5kAPI.GetJob(d.G5kJobID) {
+	for job, err := d.g5kAPI.GetJob(d.G5kJobID); job.State != "running"; job, err = d.g5kAPI.GetJob(d.G5kJobID) {
 		// check if GetJob returned an error
 		if err != nil {
 			return err
@@ -66,7 +66,7 @@ func (d *Driver) makeJobSubmission() error {
 	}
 
 	// submit new Job request
-	jobID, err := d.G5kAPI.SubmitJob(api.JobRequest{
+	jobID, err := d.g5kAPI.SubmitJob(api.JobRequest{
 		Resources:  fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
 		Command:    jobCommand,
 		Properties: d.G5kResourceProperties,
@@ -88,7 +88,7 @@ func (d *Driver) makeJobReservation() error {
 	jobTypes := []string{"deploy"}
 
 	// submit new Job request
-	jobID, err := d.G5kAPI.SubmitJob(api.JobRequest{
+	jobID, err := d.g5kAPI.SubmitJob(api.JobRequest{
 		Resources:   fmt.Sprintf("nodes=1,walltime=%s", d.G5kWalltime),
 		Command:     jobCommand,
 		Properties:  d.G5kResourceProperties,
@@ -111,7 +111,7 @@ func (d *Driver) waitUntilWorkflowIsDone(operation string, wid string, node stri
 
 	for {
 		// get operation workflow
-		workflow, err := d.G5kAPI.GetOperationWorkflow(operation, wid)
+		workflow, err := d.g5kAPI.GetOperationWorkflow(operation, wid)
 		if err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func (d *Driver) deployImageToNode() error {
 	}
 
 	// get job informations
-	job, err := d.G5kAPI.GetJob(d.G5kJobID)
+	job, err := d.g5kAPI.GetJob(d.G5kJobID)
 	if err != nil {
 		return fmt.Errorf("Error when getting job (id: '%d') informations: %s", d.G5kJobID, err.Error())
 	}
@@ -175,7 +175,7 @@ func (d *Driver) deployImageToNode() error {
 	sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
 
 	// submit deployment operation to kadeploy
-	op, err := d.G5kAPI.SubmitDeployment(api.DeploymentOperation{
+	op, err := d.g5kAPI.SubmitDeployment(api.DeploymentOperation{
 		Nodes: []string{node},
 		Environment: api.DeploymentOperationEnvironment{
 			Kind: "database",
@@ -217,7 +217,7 @@ func (d *Driver) getNodePowerState() (string, error) {
 		return "", fmt.Errorf("Failed to get the node hostname: %s", err.Error())
 	}
 
-	op, err := d.G5kAPI.RequestPowerStatus(node)
+	op, err := d.g5kAPI.RequestPowerStatus(node)
 	if err != nil {
 		return "", fmt.Errorf("Failed to request power status: %s", err.Error())
 	}
@@ -227,7 +227,7 @@ func (d *Driver) getNodePowerState() (string, error) {
 	}
 
 	// get nodes states for the workflow
-	states, err := d.G5kAPI.GetOperationStates("power", op.WID)
+	states, err := d.g5kAPI.GetOperationStates("power", op.WID)
 	if err != nil {
 		return "", err
 	}
@@ -259,7 +259,7 @@ func (d *Driver) changeNodePowerStatus(status string, level string) error {
 		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
 	}
 
-	op, err := d.G5kAPI.SubmitPowerOperation(api.PowerOperation{
+	op, err := d.g5kAPI.SubmitPowerOperation(api.PowerOperation{
 		Nodes:  []string{node},
 		Status: status,
 		Level:  level,
@@ -284,7 +284,7 @@ func (d *Driver) rebootNode(level string) error {
 		return fmt.Errorf("Failed to get the node hostname: %s", err.Error())
 	}
 
-	op, err := d.G5kAPI.SubmitRebootOperation(api.RebootOperation{
+	op, err := d.g5kAPI.SubmitRebootOperation(api.RebootOperation{
 		Kind:  "simple",
 		Nodes: []string{node},
 		Level: level,
