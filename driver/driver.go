@@ -23,7 +23,7 @@ const g5kReferenceEnvironmentName string = "debian10-x64-std"
 type Driver struct {
 	*drivers.BaseDriver
 
-	G5kAPI                             *api.Client
+	// Persistent fields
 	G5kJobID                           int
 	G5kUsername                        string
 	G5kPassword                        string
@@ -38,6 +38,9 @@ type Driver struct {
 	ExternalSSHPublicKeys              []string
 	G5kKeepAllocatedResourceAtDeletion bool
 	G5kNodeHostname                    string
+
+	// Ephemeral fields
+	g5kAPI *api.Client
 }
 
 // NewDriver creates and returns a new instance of the driver
@@ -203,7 +206,9 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 func (d *Driver) GetIP() (string, error) {
 	if d.IPAddress == "" {
 		if d.G5kNodeHostname == "" {
-			job, err := d.G5kAPI.GetJob(d.G5kJobID)
+			d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
+			job, err := d.g5kAPI.GetJob(d.G5kJobID)
 			if err != nil {
 				return "", err
 			}
@@ -267,7 +272,9 @@ func (d *Driver) GetURL() (string, error) {
 
 // GetState returns the state that the host is in (running, stopped, etc)
 func (d *Driver) GetState() (state.State, error) {
-	job, err := d.G5kAPI.GetJob(d.G5kJobID)
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
+	job, err := d.g5kAPI.GetJob(d.G5kJobID)
 	if err != nil {
 		return state.None, err
 	}
@@ -320,10 +327,8 @@ func (d *Driver) PreCreateCheck() error {
 		return err
 	}
 
-	// create API client
-	d.G5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
 
-	// load driver SSH public key
 	if err := d.loadDriverSSHPublicKey(); err != nil {
 		return err
 	}
@@ -359,6 +364,8 @@ func (d *Driver) PreCreateCheck() error {
 
 // Create wait for the job to be running, deploy the OS image and copy the ssh keys
 func (d *Driver) Create() error {
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
 	// wait for job to be in 'running' state
 	if err := d.waitUntilJobIsReady(); err != nil {
 		return err
@@ -381,10 +388,12 @@ func (d *Driver) Create() error {
 
 // Remove delete the resources reservation
 func (d *Driver) Remove() error {
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
 	// keep the resource allocated if the user asked for it
 	if !d.G5kKeepAllocatedResourceAtDeletion {
 		log.Infof("Deallocating resource... (Job ID: '%d')", d.G5kJobID)
-		return d.G5kAPI.KillJob(d.G5kJobID)
+		return d.g5kAPI.KillJob(d.G5kJobID)
 	}
 
 	return nil
@@ -392,20 +401,28 @@ func (d *Driver) Remove() error {
 
 // Kill perform a hard power-off on the node
 func (d *Driver) Kill() error {
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
 	return d.changeNodePowerStatus("off", "hard")
 }
 
 // Start perform a soft power-on on the node
 func (d *Driver) Start() error {
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
 	return d.changeNodePowerStatus("on", "soft")
 }
 
 // Stop perform a soft power-off on the node
 func (d *Driver) Stop() error {
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
 	return d.changeNodePowerStatus("off", "soft")
 }
 
 // Restart perform a soft reboot on the node
 func (d *Driver) Restart() error {
+	d.g5kAPI = api.NewClient(d.G5kUsername, d.G5kPassword, d.G5kSite)
+
 	return d.rebootNode("soft")
 }
