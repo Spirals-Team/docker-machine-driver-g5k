@@ -9,7 +9,7 @@ import (
 
 const (
 	g5kAPIhostname string = "api.grid5000.fr"
-	g5kAPIversion  string = "4.0"
+	g5kAPIversion  string = "sid"
 )
 
 // Client is a client to the Grid'5000 REST API

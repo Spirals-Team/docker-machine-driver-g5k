@@ -145,7 +145,7 @@ func (c *Client) SubmitDeployment(operation DeploymentOperation) (*OperationResp
 	req, err := c.caller.R().
 		SetBody(operation).
 		SetResult(&OperationResponse{}).
-		Post(c.getEndpoint("deployment", "/", url.Values{}))
+		Post(c.getEndpoint("internal/kadeployapi", "/deployment", url.Values{}))
 
 	if err != nil {
 		return nil, fmt.Errorf("Error while sending the deployment request: '%s'", err)
