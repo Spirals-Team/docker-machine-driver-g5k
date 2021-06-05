@@ -35,8 +35,8 @@ func NewClient(username, password, site string) *Client {
 
 // getEndpoint construct and returns the API endpoint for the given api name and path
 func (c *Client) getEndpoint(api string, path string, params url.Values) string {
-	url := c.baseURL
-	url.Path = gopath.Join(url.Path, api, path)
-	url.RawQuery = params.Encode()
-	return url.String()
+	endpoint := c.baseURL
+	endpoint.Path = gopath.Join(endpoint.Path, api, path)
+	endpoint.RawQuery = params.Encode()
+	return endpoint.String()
 }
