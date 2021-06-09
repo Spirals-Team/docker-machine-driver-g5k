@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code of the project
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+
+      - name: Fetch project dependencies
+        run: go mod download -x
+
+      - name: Build binary for Linux on amd64 (x86_64)
+        run: GOOS=linux GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-linux-x86_64
+
+      - name: Build binary for Linux on arm64 (arm64)
+        run: GOOS=linux GOARCH=arm64 go build -v -o bin/docker-machine-driver-g5k-linux-arm64
+
+      - name: Build binary for Windows on amd64 (x86_64)
+        run: GOOS=windows GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-windows-x86_64
+
+      - name: Build binary for MacOS on amd64 (x86_64)
+        run: GOOS=darwin GOARCH=amd64 go build -v -o bin/docker-machine-driver-g5k-macos-x86_64
+
+      - name: Build binary for MacOS on Apple Silicon (arm64)
+        run: GOOS=darwin GOARCH=arm64 go build -v -o bin/docker-machine-driver-g5k-macos-arm64
+
+      - name: Generate md5 and sha256 checksum files
+        run: |
+          (cd bin && md5sum docker-machine-driver-g5k-* >MD5SUMS && cat MD5SUMS)
+          (cd bin && sha256sum docker-machine-driver-g5k-* >SHA256SUMS && cat SHA256SUMS)
+
+      - name: Upload binaries and checksum files to GitHub release
+        run: gh release upload ${{ github.event.release.tag_name }} bin/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
