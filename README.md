@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/Spirals-Team/docker-machine-driver-g5k.svg?style=shield)](https://circleci.com/gh/Spirals-Team/docker-machine-driver-g5k)
+[![GitHub actions](https://github.com/Spirals-Team/docker-machine-driver-g5k/actions/workflows/build.yml/badge.svg)](https://github.com/Spirals-Team/docker-machine-driver-g5k/actions/workflows/build.yml)
 [![GitHub release](https://img.shields.io/github/release/Spirals-Team/docker-machine-driver-g5k.svg)](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases)
 [![License](https://img.shields.io/github/license/Spirals-Team/docker-machine-driver-g5k.svg)](https://opensource.org/licenses/Apache-2.0)
 
