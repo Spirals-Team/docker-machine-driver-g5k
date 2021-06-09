@@ -24,11 +24,16 @@ func (d *Driver) checkVpnConfiguration() error {
 func (d *Driver) waitUntilJobIsReady() error {
 	log.Info("Waiting for job to run...")
 
-	// refresh job state
-	for job, err := d.g5kAPI.GetJob(d.G5kJobID); job.State != "running"; job, err = d.g5kAPI.GetJob(d.G5kJobID) {
-		// check if GetJob returned an error
+	for {
+		// get job
+		job, err := d.g5kAPI.GetJob(d.G5kJobID)
 		if err != nil {
 			return err
+		}
+
+		// check if the job is running
+		if job.State == "running" {
+			break
 		}
 
 		// stop if the job is in 'error' or 'terminated' state
