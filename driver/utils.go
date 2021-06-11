@@ -19,6 +19,30 @@ func ArrayContainsString(array []string, str string) bool {
 	return false
 }
 
+// ArrayRemoveDuplicate returns the given array without duplicate entries
+func ArrayRemoveDuplicate(array []string) []string {
+	var a []string
+	m := make(map[string]bool)
+	for _, item := range array {
+		if _, ok := m[item]; !ok {
+			a = append(a, item)
+			m[item] = true
+		}
+	}
+	return a
+}
+
+// ArrayRemoveEntry returns the given array without the given entry
+func ArrayRemoveEntry(array []string, entry string) []string {
+	var a []string
+	for _, item := range array {
+		if item != entry {
+			a = append(a, item)
+		}
+	}
+	return a
+}
+
 // GenerateSSHAuthorizedKeys generate the SSH AuthorizedKeys composed of the driver and external user defined key(s)
 func GenerateSSHAuthorizedKeys(driverKey string, externalKeys []string) string {
 	var authorizedKeysEntries []string

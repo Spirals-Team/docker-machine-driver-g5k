@@ -38,6 +38,7 @@ type Driver struct {
 	ExternalSSHPublicKeys              []string
 	G5kKeepAllocatedResourceAtDeletion bool
 	G5kNodeHostname                    string
+	G5kJobTypes                        []string
 
 	// Ephemeral fields
 	g5kAPI *api.Client
@@ -137,13 +138,18 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "G5K_EXTERNAL_SSH_PUBLIC_KEYS",
 			Name:   "g5k-external-ssh-public-keys",
 			Usage:  "Additional SSH public key(s) allowed to connect to the node (in authorized_keys format)",
-			Value:  []string{},
 		},
 
 		mcnflag.BoolFlag{
 			EnvVar: "G5K_KEEP_RESOURCE_AT_DELETION",
 			Name:   "g5k-keep-resource-at-deletion",
 			Usage:  "Keep the allocated resource when removing the machine (the job will NOT be killed)",
+		},
+
+		mcnflag.StringSliceFlag{
+			EnvVar: "G5K_JOB_TYPES",
+			Name:   "g5k-job-types",
+			Usage:  "Specify the job type(s)",
 		},
 	}
 }
@@ -164,6 +170,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.ExternalSSHPublicKeys = opts.StringSlice("g5k-external-ssh-public-keys")
 	d.G5kKeepAllocatedResourceAtDeletion = opts.Bool("g5k-keep-resource-at-deletion")
 	d.G5kNodeHostname = opts.String("g5k-select-node-from-reservation")
+	d.G5kJobTypes = opts.StringSlice("g5k-job-types")
 
 	if d.G5kUsername == "" {
 		return fmt.Errorf("You must give your Grid5000 account username")
@@ -197,6 +204,11 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		if d.G5kJobID == 0 {
 			return fmt.Errorf("You cannot select a node when doing a job submission")
 		}
+	}
+
+	if len(d.G5kJobTypes) > 0 && d.G5kJobID != 0 {
+		// Incorrect use of the job type(s) flag with an existing resource reservation
+		return fmt.Errorf("Setting the job type(s) is not possible when using a resource reservation, this have to be set when making the reservation")
 	}
 
 	return nil

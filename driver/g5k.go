@@ -58,12 +58,12 @@ func (d *Driver) waitUntilJobIsReady() error {
 func (d *Driver) makeJobSubmission() error {
 	// by default, the node will be redeployed with another image, no specific actions are needed
 	jobCommand := "sleep 365d"
-	jobTypes := []string{"deploy"}
+	jobTypes := ArrayRemoveDuplicate(append(d.G5kJobTypes, "deploy"))
 
 	// if the user want to reuse the reference environment, specific actions are needed
 	if d.G5kReuseRefEnvironment {
 		// remove the 'deploy' job type because we will not deploy the machine
-		jobTypes = []string{}
+		jobTypes = ArrayRemoveEntry(jobTypes, "deploy")
 		// convert the ssh authorized_keys to be added in base64
 		sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
 		// enable sudo for current user, add public key to ssh authorized keys for root user and wait the end of the job
@@ -90,7 +90,7 @@ func (d *Driver) makeJobSubmission() error {
 // makeJobReservation submit a job reservation to Grid'5000
 func (d *Driver) makeJobReservation() error {
 	jobCommand := "sleep 365d"
-	jobTypes := []string{"deploy"}
+	jobTypes := ArrayRemoveDuplicate(append(d.G5kJobTypes, "deploy"))
 
 	// submit new Job request
 	jobID, err := d.g5kAPI.SubmitJob(api.JobRequest{
