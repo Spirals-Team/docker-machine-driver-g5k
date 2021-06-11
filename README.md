@@ -59,6 +59,7 @@ export PATH=$PATH:$GOPATH/bin
 * `--g5k-job-queue` : [Specify the job queue (the `besteffort` queue is NOT supported)](#job-queues)
 * `--g5k-external-ssh-public-keys` : SSH public key(s) allowed to connect to the node (in authorized_keys format)
 * `--g5k-keep-resource-at-deletion` : [Keep the allocated resource when removing the machine](#resource-reservation)
+* `--g5k-job-types` : Specify the OAR job type(s)
 
 #### Flags usage
 |              Flag name               |        Environment variable        |     Default value     |
@@ -76,6 +77,7 @@ export PATH=$PATH:$GOPATH/bin
 | `--g5k-job-queue`                    | `G5K_JOB_QUEUE`                    | "default"             |
 | `--g5k-external-ssh-public-keys`     | `G5K_EXTERNAL_SSH_PUBLIC_KEYS`     |                       |
 | `--g5k-keep-resource-at-deletion`    | `G5K_KEEP_RESOURCE_AT_DELETION`    | False                 |
+| `--g5k-job-types`                    | `G5K_JOB_TYPES`                    |                       |
 
 #### Resource properties
 You can use [OAR properties](http://oar.imag.fr/docs/2.5/user/usecases.html#using-properties) to only select a node that matches your hardware requirements.  
@@ -131,13 +133,13 @@ docker-machine create -d g5k \
 test-node
 ```
 
-An example deploying the Ubuntu 18.04 (bionic) (`ubuntu1804-x64-min`) environment image on the node:
+An example deploying the Ubuntu 20.04 (focal) (`ubuntu2004-x64-min`) environment image on the node:
 ```bash
 docker-machine create -d g5k \
 --g5k-username "user" \
 --g5k-password "********" \
 --g5k-site "lille" \
---g5k-image "ubuntu1804-x64-min" \
+--g5k-image "ubuntu2004-x64-min" \
 test-node
 ```
 
