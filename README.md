@@ -203,3 +203,14 @@ docker-machine create -d g5k \
 --g5k-external-ssh-public-keys "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQC5qQt/nzGW19uCb9CDVEvP93LZ2mu3rd7drPP1nLf1pzLwlL2U2ksfwDCjMWU0P7KA6tB4scI+4dhxj07t0Z8g4TsMGYhbG0kjf7tWN73DombB4h/zobo2GvVoMg0NBLTP4peXLYAEofTYc0g7OWtJicAzLwcMzHsitDjjBwCKHQ== test-rsa" \
 test-node
 ```
+
+An example using the `exotic` job type to reserve a node of the `pyxis` cluster (exotic resources) from the `lyon` site:
+```bash
+docker-machine create -d g5k \
+--g5k-username "user" \
+--g5k-password "********" \
+--g5k-site "lyon" \
+--g5k-job-types "exotic" \
+--g5k-resource-properties "cluster = 'pyxis'" \
+test-node
+```
