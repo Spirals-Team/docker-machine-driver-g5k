@@ -19,28 +19,6 @@ type RebootOperation struct {
 	Level string   `json:"level,omitempty"`
 }
 
-// DeploymentOperationEnvironment stores the attributes about the environment to be deployed by a Deployment operation
-type DeploymentOperationEnvironment struct {
-	Kind    string `json:"kind"`
-	User    string `json:"user,omitempty"`
-	Name    string `json:"name"`
-	Version string `json:"version,omitempty"`
-}
-
-// DeploymentOperationCustomOperation stores the attributes for a custom deployment operation of a Deployment operation
-type DeploymentOperationCustomOperation struct {
-	Action  string `json:"action"`
-	Name    string `json:"name"`
-	Command string `json:"command,omitempty"`
-}
-
-// DeploymentOperation stores the attributes for a Deployment operation
-type DeploymentOperation struct {
-	Nodes            []string                                                              `json:"nodes"`
-	Environment      DeploymentOperationEnvironment                                        `json:"environment"`
-	CustomOperations map[string]map[string]map[string][]DeploymentOperationCustomOperation `json:"custom_operations,omitempty"`
-}
-
 // OperationResponse stores the attributes of the response of the submission of an operation
 type OperationResponse struct {
 	WID string `json:"wid"`
@@ -60,6 +38,18 @@ type OperationStates map[string]struct {
 	Micro string `json:"micro"`
 	State string `json:"state"`
 	Out   string `json:"out,omitempty"`
+}
+
+// DeploymentRequest represents a new deployment submission
+type DeploymentRequest struct {
+	Nodes       []string `json:"nodes"`
+	Environment string   `json:"environment"`
+	Key         string   `json:"key"`
+}
+
+// Deployment represents the response of a new deployment request
+type DeploymentResponse struct {
+	UID string `json:"uid"`
 }
 
 // SubmitPowerOperation submit a power operation to the Kadeploy3 API
@@ -140,24 +130,24 @@ func (c *Client) SubmitRebootOperation(operation RebootOperation) (*OperationRes
 }
 
 // SubmitDeployment submits a new deployment request to g5k api
-func (c *Client) SubmitDeployment(operation DeploymentOperation) (*OperationResponse, error) {
+func (c *Client) SubmitDeployment(operation DeploymentRequest) (*DeploymentResponse, error) {
 	// send deployment request to kadeploy3 API
 	req, err := c.caller.R().
 		SetBody(operation).
-		SetResult(&OperationResponse{}).
-		Post(c.getEndpoint("internal/kadeployapi", "/deployment", url.Values{}))
+		SetResult(&DeploymentResponse{}).
+		Post(c.getEndpoint("deployments", "/", url.Values{}))
 
 	if err != nil {
 		return nil, fmt.Errorf("Error while sending the deployment request: '%s'", err)
 	}
 
-	// check HTTP error code (expected: 200 OK)
-	if req.StatusCode() != 200 {
+	// check HTTP error code (expected: 201 OK)
+	if req.StatusCode() != 201 {
 		return nil, fmt.Errorf("The server returned an error (code: %d) after sending Deployment request: '%s'", req.StatusCode(), req.Status())
 	}
 
 	// unmarshal result
-	res, ok := req.Result().(*OperationResponse)
+	res, ok := req.Result().(*DeploymentResponse)
 	if !ok {
 		return nil, fmt.Errorf("Error in the response of the Deployment request (unexpected type)")
 	}

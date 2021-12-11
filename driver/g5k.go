@@ -176,39 +176,21 @@ func (d *Driver) deployImageToNode() error {
 
 	log.Infof("Submitting a new deployment for node '%s'... (image: '%s')", node, d.G5kImage)
 
-	// convert the ssh authorized_keys to be added in base64
-	sshAuthorizedKeysBase64 := base64.StdEncoding.EncodeToString([]byte(GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys)))
-
 	// submit deployment operation to kadeploy
-	op, err := d.g5kAPI.SubmitDeployment(api.DeploymentOperation{
-		Nodes: []string{node},
-		Environment: api.DeploymentOperationEnvironment{
-			Kind: "database",
-			Name: d.G5kImage,
-		},
-		CustomOperations: map[string]map[string]map[string][]api.DeploymentOperationCustomOperation{
-			"BroadcastEnvKascade": {
-				"manage_user_post_install": {
-					"post-ops": {
-						api.DeploymentOperationCustomOperation{
-							Name:    "docker_machine_driver_ssh_root_pub_keys",
-							Action:  "exec",
-							Command: fmt.Sprint(`printf ` + sshAuthorizedKeysBase64 + ` |base64 -d >> $KADEPLOY_ENV_EXTRACTION_DIR/root/.ssh/authorized_keys`),
-						},
-					},
-				},
-			},
-		},
+	op, err := d.g5kAPI.SubmitDeployment(api.DeploymentRequest{
+		Nodes:       []string{node},
+		Environment: d.G5kImage,
+		Key:         GenerateSSHAuthorizedKeys(d.DriverSSHPublicKey, d.ExternalSSHPublicKeys),
 	})
 
 	if err != nil {
 		return fmt.Errorf("Error when submitting new deployment: %s", err.Error())
 	}
 
-	log.Infof("Deployment operation for '%s' node have been submitted successfully (workflow id: '%s')", node, op.WID)
+	log.Infof("Deployment operation for '%s' node have been submitted successfully (workflow id: '%s')", node, op.UID)
 
 	// waiting deployment to finish (REQUIRED or you will interfere with kadeploy)
-	if err = d.waitUntilWorkflowIsDone("deployment", op.WID, node); err != nil {
+	if err = d.waitUntilWorkflowIsDone("deployment", op.UID, node); err != nil {
 		return fmt.Errorf("Error when waiting for deployment to finish: %s", err.Error())
 	}
 
