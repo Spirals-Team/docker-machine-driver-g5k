@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/docker/machine v0.16.2
 	github.com/go-resty/resty/v2 v2.7.0
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	golang.org/x/crypto v0.14.0
 )
 
 require (
@@ -13,7 +13,7 @@ require (
 	github.com/docker/docker v20.10.24+incompatible // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/term v0.13.0 // indirect
 )
