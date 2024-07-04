@@ -2,6 +2,12 @@
 [![GitHub release](https://img.shields.io/github/release/Spirals-Team/docker-machine-driver-g5k.svg)](https://github.com/Spirals-Team/docker-machine-driver-g5k/releases)
 [![License](https://img.shields.io/github/license/Spirals-Team/docker-machine-driver-g5k.svg)](https://opensource.org/licenses/Apache-2.0)
 
+> [!WARNING]
+> [Docker Machine](https://github.com/docker/machine) has been _officially deprecated_ since September 2021.  
+> [GitLab have forked the project](https://gitlab.com/gitlab-org/ci-cd/docker-machine) and will maintains it until the end of the calendar year 2024.  
+> Unless you are already using it, this is certainly **NOT** a good idea to start using it now.  
+> Please refer to the [Grid'5000 user guide](https://www.grid5000.fr/w/Users_Home) for more up-to-date deployments methods for your experiments.
+
 # docker-machine-driver-g5k
 [Docker Machine](https://gitlab.com/gitlab-org/ci-cd/docker-machine) driver for the [Grid'5000 testbed infrastructure](https://www.grid5000.fr/).
 
