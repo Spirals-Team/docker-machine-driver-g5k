@@ -3,11 +3,11 @@
 [![License](https://img.shields.io/github/license/Spirals-Team/docker-machine-driver-g5k.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # docker-machine-driver-g5k
-[Docker Machine](https://docs.docker.com/machine/install-machine) driver for the [Grid'5000 testbed infrastructure](https://www.grid5000.fr/).
+[Docker Machine](https://gitlab.com/gitlab-org/ci-cd/docker-machine) driver for the [Grid'5000 testbed infrastructure](https://www.grid5000.fr/).
 
 ## Requirements
 * [Docker](https://www.docker.com/products/overview#/install_the_platform)
-* [Docker Machine](https://docs.docker.com/machine/install-machine)
+* [Docker Machine](https://gitlab.com/gitlab-org/ci-cd/docker-machine)
 * [Go tools (only for installation from sources)](https://golang.org/doc/install)
 
 You need a Grid'5000 account to use this driver. See [this page](https://www.grid5000.fr/mediawiki/index.php/Grid5000:Get_an_account) to create an account.
