@@ -4,7 +4,7 @@
 
 > [!WARNING]
 > [Docker Machine](https://github.com/docker/machine) has been _officially deprecated_ since September 2021.  
-> [GitLab have forked the project](https://gitlab.com/gitlab-org/ci-cd/docker-machine) and will maintains it until the end of the calendar year 2024.  
+> [GitLab have forked the project](https://gitlab.com/gitlab-org/ci-cd/docker-machine) and intend to support it until May 2027.  
 > Unless you are already using it, this is certainly **NOT** a good idea to start using it now.  
 > Please refer to the [Grid'5000 user guide](https://www.grid5000.fr/w/Users_Home) for more up-to-date deployments methods for your experiments.
 
