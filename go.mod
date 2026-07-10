@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/docker/machine v0.16.2
 	github.com/go-resty/resty/v2 v2.16.2
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 )
 
 require (
